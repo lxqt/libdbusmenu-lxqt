@@ -183,4 +183,4 @@ QString DBusMenuExporterDBus::status() const
 }
 
 
-#include "dbusmenuexporterdbus_p.moc"
+#include "moc_dbusmenuexporterdbus_p.cpp"
