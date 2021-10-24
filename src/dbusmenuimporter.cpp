@@ -34,6 +34,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QWidgetAction>
+#include <QActionGroup>
 
 // Local
 #include "dbusmenutypes_p.h"

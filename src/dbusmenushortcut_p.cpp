@@ -22,6 +22,7 @@
 
 // Qt
 #include <QtGui/QKeySequence>
+#include <QtDBus/QDBusArgument>
 
 // Local
 #include "debug_p.h"
@@ -82,4 +83,30 @@ QKeySequence DBusMenuShortcut::toKeySequence() const
     }
     QString string = tmp.join(QLatin1String(", "));
     return QKeySequence::fromString(string);
+}
+
+QDBusArgument &operator<<(QDBusArgument &argument, const DBusMenuShortcut &obj)
+{
+    int id = qMetaTypeId<QStringList>();
+    argument.beginArray(id);
+    typename DBusMenuShortcut::ConstIterator it = obj.constBegin();
+    typename DBusMenuShortcut::ConstIterator end = obj.constEnd();
+    for ( ; it != end; ++it)
+        argument << *it;
+    argument.endArray();
+    return argument;
+}
+
+const QDBusArgument &operator>>(const QDBusArgument &argument, DBusMenuShortcut &obj)
+{
+    argument.beginArray();
+    obj.clear();
+    while (!argument.atEnd()) {
+        QStringList item;
+        argument >> item;
+        obj.push_back(item);
+    }
+    argument.endArray();
+
+    return argument;
 }

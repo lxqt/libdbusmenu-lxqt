@@ -30,6 +30,7 @@
 
 
 class QKeySequence;
+class QDBusArgument;
 
 class DBUSMENU_EXPORT DBusMenuShortcut : public QList<QStringList>
 {
@@ -39,5 +40,8 @@ public:
 };
 
 Q_DECLARE_METATYPE(DBusMenuShortcut)
+
+DBUSMENU_EXPORT QDBusArgument &operator<<(QDBusArgument &argument, const DBusMenuShortcut &);
+DBUSMENU_EXPORT const QDBusArgument &operator>>(const QDBusArgument &argument, DBusMenuShortcut &);
 
 #endif /* DBUSMENUSHORTCUT_H */

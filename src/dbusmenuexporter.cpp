@@ -29,6 +29,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QWidgetAction>
+#include <QActionGroup>
 
 // Local
 #include "dbusmenu_config.h"
@@ -484,7 +485,7 @@ void DBusMenuExporter::activateAction(QAction *action)
 {
     int id = d->idForAction(action);
     DMRETURN_IF_FAIL(id >= 0);
-    uint timeStamp = QDateTime::currentDateTime().toTime_t();
+    uint timeStamp = QDateTime::currentDateTime().toSecsSinceEpoch();
     d->m_dbusObject->ItemActivationRequested(id, timeStamp);
 }
 
