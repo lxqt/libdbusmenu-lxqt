@@ -24,11 +24,9 @@
 
 void waitForDeferredDeletes()
 {
-    while (QCoreApplication::hasPendingEvents()) {
-        QCoreApplication::sendPostedEvents();
-        QCoreApplication::sendPostedEvents(0, QEvent::DeferredDelete);
-        QCoreApplication::processEvents();
-    }
+    QCoreApplication::sendPostedEvents();
+    QCoreApplication::sendPostedEvents(0, QEvent::DeferredDelete);
+    QCoreApplication::processEvents();
 }
 
 #include "testutils.moc"

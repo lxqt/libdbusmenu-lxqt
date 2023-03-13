@@ -24,38 +24,11 @@ set(dbusmenu_qt_lib_PATCH_VERSION 0)
 
 set(dbusmenu_qt_lib_VERSION ${dbusmenu_qt_lib_SOVERSION}.${dbusmenu_qt_lib_API_VERSION}.${dbusmenu_qt_lib_PATCH_VERSION})
 
-# Check if we want to explicitly select the Qt version to be used or autodetect
-if (NOT USE_QT4 AND NOT USE_QT5)
-    # Autodetect, prefering Qt5
-    message(STATUS "Autodetecting Qt version to use")
-    find_package(Qt5Widgets QUIET)
-    if (Qt5Widgets_FOUND)
-        set(USE_QT5 TRUE)
-    endif()
-endif()
-
-# Detect for which Qt version we're building
-if (USE_QT5)
-    find_package(Qt5Widgets REQUIRED)
-    find_package(Qt5DBus REQUIRED)
-    include_directories(${Qt5Widgets_INCLUDE_DIRS} ${Qt5DBus_INCLUDE_DIRS})
-    find_package(Qt5Core REQUIRED)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTOMOC_RELAXED_MODE ON)
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-    set(QT_SUFFIX "qt5")
-else()
-    find_package(Qt4 REQUIRED)
-    include_directories(
-      ${QT_INCLUDE_DIR}
-      ${QT_QTCORE_INCLUDE_DIR}
-      ${QT_QTDBUS_INCLUDE_DIR}
-      ${QT_QTGUI_INCLUDE_DIR}
-      )
-
-    set(QT_SUFFIX "qt")
-endif()
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
+include_directories(${Qt6Widgets_INCLUDE_DIRS} ${Qt6DBus_INCLUDE_DIRS})
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOMOC_RELAXED_MODE ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include (CheckCXXCompilerFlag)
 # Check some compiler flags
@@ -69,19 +42,19 @@ if (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
 endif (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
 
-check_cxx_compiler_flag(-std=c++11 __DBUSMENU_HAVE_CXX11)
-if (__DBUSMENU_HAVE_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif (__DBUSMENU_HAVE_CXX11)
+check_cxx_compiler_flag(-std=c++17 __DBUSMENU_HAVE_CXX17)
+if (__DBUSMENU_HAVE_CXX17)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif (__DBUSMENU_HAVE_CXX17)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 set(LIB_DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-set(CMAKECONFIG_INSTALL_DIR "${LIB_DESTINATION}/cmake/dbusmenu-${QT_SUFFIX}")
-set(INCLUDE_INSTALL_DIR "include/dbusmenu-${QT_SUFFIX}")
+set(CMAKECONFIG_INSTALL_DIR "${LIB_DESTINATION}/cmake/dbusmenu-qt6")
+set(INCLUDE_INSTALL_DIR "include/dbusmenu-qt6")
 
 # dist targets
-set(ARCHIVE_NAME libdbusmenu-${QT_SUFFIX}-${dbusmenu_qt_VERSION})
+set(ARCHIVE_NAME libdbusmenu-qt6-${dbusmenu_qt_VERSION})
 add_custom_target(dist
     COMMAND bzr export --root=${ARCHIVE_NAME} ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.bz2
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -100,9 +73,9 @@ add_custom_target(distcheck
     )
 add_dependencies(distcheck dist)
 
-configure_file(dbusmenu-qt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-${QT_SUFFIX}.pc @ONLY)
+configure_file(dbusmenu-qt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-qt6.pc @ONLY)
 
-install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-${QT_SUFFIX}.pc
+install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-qt6.pc
         DESTINATION ${LIB_DESTINATION}/pkgconfig
     )
 
@@ -118,28 +91,28 @@ if(WITH_DOC)
         )
 
     install(DIRECTORY ${CMAKE_BINARY_DIR}/html/
-        DESTINATION share/doc/libdbusmenu-${QT_SUFFIX}-doc
+        DESTINATION share/doc/libdbusmenu-qt6-doc
         )
 endif(WITH_DOC)
 
 # Generate dbusmenu-qt-config* files
 configure_package_config_file(
     dbusmenu-qt-config.cmake.in
-    ${CMAKE_BINARY_DIR}/dbusmenu-${QT_SUFFIX}-config.cmake
+    ${CMAKE_BINARY_DIR}/dbusmenu-qt6-config.cmake
     INSTALL_DESTINATION ${CMAKECONFIG_INSTALL_DIR}
     PATH_VARS INCLUDE_INSTALL_DIR
     )
 
 write_basic_package_version_file(
-    ${CMAKE_BINARY_DIR}/dbusmenu-${QT_SUFFIX}-config-version.cmake
+    ${CMAKE_BINARY_DIR}/dbusmenu-qt6-config-version.cmake
     VERSION ${dbusmenu_qt_VERSION}
     COMPATIBILITY SameMajorVersion
     )
 
 # Install dbusmenu-qt-config* files
 install(FILES
-    ${CMAKE_BINARY_DIR}/dbusmenu-${QT_SUFFIX}-config.cmake
-    ${CMAKE_BINARY_DIR}/dbusmenu-${QT_SUFFIX}-config-version.cmake
+    ${CMAKE_BINARY_DIR}/dbusmenu-qt6-config.cmake
+    ${CMAKE_BINARY_DIR}/dbusmenu-qt6-config-version.cmake
     DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
     COMPONENT Devel
     )
