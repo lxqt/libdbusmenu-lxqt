@@ -1,10 +1,10 @@
 prefix=@CMAKE_INSTALL_PREFIX@
 exec_prefix=@CMAKE_INSTALL_PREFIX@
 libdir=@CMAKE_INSTALL_PREFIX@/lib
-includedir=@CMAKE_INSTALL_PREFIX@/include/dbusmenu-qt6
+includedir=@CMAKE_INSTALL_PREFIX@/include/dbusmenu-lxqt
 
-Name: libdbusmenu-qt6
+Name: libdbusmenu-lxqt
 Description: Qt implementation of dbusmenu spec
 Version: @dbusmenu_qt_VERSION@
-Libs: -L${libdir} -ldbusmenu-qt6
+Libs: -L${libdir} -ldbusmenu-lxqt
 Cflags: -I${includedir}

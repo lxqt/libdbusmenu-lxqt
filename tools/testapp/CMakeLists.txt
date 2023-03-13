@@ -15,7 +15,7 @@ include_directories(
     )
 
 target_link_libraries(dbusmenubench-qtapp
-    dbusmenu-qt6
+    dbusmenu-lxqt
     ${Qt6Gui_LIBRARIES}
     ${Qt6Core_LIBRARIES}
     ${Qt6DBus_LIBRARIES}

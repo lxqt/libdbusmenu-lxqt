@@ -6,7 +6,7 @@ target_link_libraries(slowmenu
     ${Qt6Gui_LIBRARIES}
     ${Qt6Core_LIBRARIES}
     ${Qt6DBus_LIBRARIES}
-    dbusmenu-qt6
+    dbusmenu-lxqt
 )
 
 set(test_LIBRARIES
@@ -14,7 +14,7 @@ set(test_LIBRARIES
     ${Qt6Core_LIBRARIES}
     ${Qt6DBus_LIBRARIES}
     ${Qt6Test_LIBRARIES}
-    dbusmenu-qt6
+    dbusmenu-lxqt
 )
 
 include_directories(

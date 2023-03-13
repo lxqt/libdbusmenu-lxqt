@@ -68,13 +68,13 @@ configure_file(dbusmenu_version.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/dbusmenu_version.h
     )
 
-add_library(dbusmenu-qt6 SHARED ${dbusmenu_qt_SRCS})
-set_target_properties(dbusmenu-qt6 PROPERTIES
+add_library(dbusmenu-lxqt SHARED ${dbusmenu_qt_SRCS})
+set_target_properties(dbusmenu-lxqt PROPERTIES
     VERSION ${dbusmenu_qt_lib_VERSION}
     SOVERSION ${dbusmenu_qt_lib_SOVERSION}
     )
 
-target_link_libraries(dbusmenu-qt6
+target_link_libraries(dbusmenu-lxqt
     Qt::Gui
     Qt::Core
         Qt::DBus
@@ -82,16 +82,16 @@ target_link_libraries(dbusmenu-qt6
     )
 
 # Make sure linking to the target adds dbusmenu-qt install directory
-target_include_directories(dbusmenu-qt6
+target_include_directories(dbusmenu-lxqt
     INTERFACE "$<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}>")
 
-install(TARGETS dbusmenu-qt6
-    EXPORT dbusmenu-qt6-targets
+install(TARGETS dbusmenu-lxqt
+    EXPORT dbusmenu-lxqt-targets
     LIBRARY DESTINATION ${LIB_DESTINATION}
     RUNTIME DESTINATION bin
     )
 
-install(EXPORT dbusmenu-qt6-targets
+install(EXPORT dbusmenu-lxqt-targets
     DESTINATION ${CMAKECONFIG_INSTALL_DIR})
 
 install(DIRECTORY .
