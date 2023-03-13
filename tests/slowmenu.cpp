@@ -38,7 +38,7 @@ SlowMenu::SlowMenu()
 void SlowMenu::slotAboutToShow()
 {
     qDebug() << __FUNCTION__ << "Entering";
-    QTime time;
+    QElapsedTimer time;
     time.start();
     while (time.elapsed() < 2000) {
         qApp->processEvents();

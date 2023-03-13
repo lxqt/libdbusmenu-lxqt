@@ -21,21 +21,16 @@ if (__DBUSMENU_HAVE_W_ALL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif (__DBUSMENU_HAVE_W_ALL)
 
-check_cxx_compiler_flag(-std=c++11 __DBUSMENU_HAVE_CXX11)
-if (__DBUSMENU_HAVE_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif (__DBUSMENU_HAVE_CXX11)
+check_cxx_compiler_flag(-std=c++17 __DBUSMENU_HAVE_CXX17)
+if (__DBUSMENU_HAVE_CXX17)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif (__DBUSMENU_HAVE_CXX17)
 
 # Check whether QIcon::name() exists. It was added in late Qt 4.7 cycle, and is
 # not present in betas.
 
-if (NOT USE_QT5)
-    set(CMAKE_REQUIRED_INCLUDES "${QT_INCLUDE_DIR}")
-    set(CMAKE_REQUIRED_LIBRARIES "${QT_QTGUI_LIBRARIES};${QT_QTCORE_LIBRARIES}")
-else()
-    set(CMAKE_REQUIRED_INCLUDES "${Qt5Gui_INCLUDE_DIRS};${Qt5Core_INCLUDE_DIRS}")
-    set(CMAKE_REQUIRED_LIBRARIES "${Qt5Gui_LIBRARIES};${Qt5Core_LIBRARIES}")
-endif()
+set(CMAKE_REQUIRED_INCLUDES "${Qt6Gui_INCLUDE_DIRS};${Qt6Core_INCLUDE_DIRS}")
+set(CMAKE_REQUIRED_LIBRARIES "${Qt6Gui_LIBRARIES};${Qt6Core_LIBRARIES}")
 check_cxx_source_compiles("
 #include <QtGui/QIcon>
 int main() {
@@ -64,56 +59,39 @@ include_directories(
     ${CMAKE_BINARY_DIR}/src
     )
 
-if (NOT USE_QT5)
-    qt4_automoc(${dbusmenu_qt_SRCS})
-    qt4_add_dbus_adaptor(dbusmenu_qt_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/com.canonical.dbusmenu.xml
-        ${CMAKE_CURRENT_SOURCE_DIR}/dbusmenuexporterdbus_p.h DBusMenuExporterDBus
-        )
-else()
-    qt5_add_dbus_adaptor(dbusmenu_qt_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/com.canonical.dbusmenu.xml
-        ${CMAKE_CURRENT_SOURCE_DIR}/dbusmenuexporterdbus_p.h DBusMenuExporterDBus
-        )
-endif()
+qt6_add_dbus_adaptor(dbusmenu_qt_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/com.canonical.dbusmenu.xml
+    ${CMAKE_CURRENT_SOURCE_DIR}/dbusmenuexporterdbus_p.h DBusMenuExporterDBus
+    )
 
 configure_file(dbusmenu_version.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/dbusmenu_version.h
     )
 
-add_library(dbusmenu-${QT_SUFFIX} SHARED ${dbusmenu_qt_SRCS})
-set_target_properties(dbusmenu-${QT_SUFFIX} PROPERTIES
+add_library(dbusmenu-qt6 SHARED ${dbusmenu_qt_SRCS})
+set_target_properties(dbusmenu-qt6 PROPERTIES
     VERSION ${dbusmenu_qt_lib_VERSION}
     SOVERSION ${dbusmenu_qt_lib_SOVERSION}
     )
 
-
-if (NOT USE_QT5)
-    target_link_libraries(dbusmenu-${QT_SUFFIX}
-        ${QT_QTGUI_LIBRARIES}
-        ${QT_QTDBUS_LIBRARIES}
-        ${QT_QTCORE_LIBRARIES}
-        )
-else()
-    target_link_libraries(dbusmenu-${QT_SUFFIX}
-        ${Qt5Gui_LIBRARIES}
-        ${Qt5Core_LIBRARIES}
-        ${Qt5DBus_LIBRARIES}
-        ${Qt5Widgets_LIBRARIES}
-        )
-endif()
+target_link_libraries(dbusmenu-qt6
+    Qt::Gui
+    Qt::Core
+        Qt::DBus
+    Qt::Widgets
+    )
 
 # Make sure linking to the target adds dbusmenu-qt install directory
-target_include_directories(dbusmenu-${QT_SUFFIX}
+target_include_directories(dbusmenu-qt6
     INTERFACE "$<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}>")
 
-install(TARGETS dbusmenu-${QT_SUFFIX}
-    EXPORT dbusmenu-${QT_SUFFIX}-targets
+install(TARGETS dbusmenu-qt6
+    EXPORT dbusmenu-qt6-targets
     LIBRARY DESTINATION ${LIB_DESTINATION}
     RUNTIME DESTINATION bin
     )
 
-install(EXPORT dbusmenu-${QT_SUFFIX}-targets
+install(EXPORT dbusmenu-qt6-targets
     DESTINATION ${CMAKECONFIG_INSTALL_DIR})
 
 install(DIRECTORY .
