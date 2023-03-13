@@ -1,5 +1,5 @@
 @PACKAGE_INIT@
 
-include("${CMAKE_CURRENT_LIST_DIR}/dbusmenu-qt6-targets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/dbusmenu-lxqt-targets.cmake")
 
-set_and_check(dbusmenu-qt6_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(dbusmenu-lxqt_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
