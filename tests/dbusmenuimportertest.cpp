@@ -39,7 +39,7 @@
 
 QTEST_MAIN(DBusMenuImporterTest)
 
-static const char *TEST_SERVICE = "com.canonical.dbusmenu-qt-test";
+static const char *TEST_SERVICE = "com.canonical.dbusmenu-lxqt-test";
 static const char *TEST_OBJECT_PATH = "/TestMenuBar";
 
 Q_DECLARE_METATYPE(QAction*)

@@ -5,6 +5,6 @@ includedir=@CMAKE_INSTALL_PREFIX@/include/dbusmenu-lxqt
 
 Name: libdbusmenu-lxqt
 Description: Qt implementation of dbusmenu spec
-Version: @dbusmenu_qt_VERSION@
+Version: @dbusmenu_lxqt_VERSION@
 Libs: -L${libdir} -ldbusmenu-lxqt
 Cflags: -I${includedir}

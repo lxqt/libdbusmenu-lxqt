@@ -1,4 +1,4 @@
-project(dbusmenu-qt)
+project(dbusmenu-lxqt)
 cmake_minimum_required(VERSION 2.8.11)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
 
@@ -7,22 +7,22 @@ option(WITH_DOC "Build documentation (requires Doxygen)" ON)
 
 # Versions
 ## Package version
-set(dbusmenu_qt_VERSION_MAJOR 0)
-set(dbusmenu_qt_VERSION_MINOR 1)
-set(dbusmenu_qt_VERSION_PATCH 0)
-set(dbusmenu_qt_VERSION ${dbusmenu_qt_VERSION_MAJOR}.${dbusmenu_qt_VERSION_MINOR}.${dbusmenu_qt_VERSION_PATCH})
+set(dbusmenu_lxqt_VERSION_MAJOR 0)
+set(dbusmenu_lxqt_VERSION_MINOR 1)
+set(dbusmenu_lxqt_VERSION_PATCH 0)
+set(dbusmenu_lxqt_VERSION ${dbusmenu_lxqt_VERSION_MAJOR}.${dbusmenu_lxqt_VERSION_MINOR}.${dbusmenu_lxqt_VERSION_PATCH})
 
 ## Lib version
 ### Bump this one when a binary-incompatible change is introduced
-set(dbusmenu_qt_lib_SOVERSION 0)
+set(dbusmenu_lxqt_lib_SOVERSION 0)
 
 ### Bump this one when the API is extended in a binary-compatible way
-set(dbusmenu_qt_lib_API_VERSION 1)
+set(dbusmenu_lxqt_lib_API_VERSION 1)
 
 ### Bump this one when changes do not extend the API
-set(dbusmenu_qt_lib_PATCH_VERSION 0)
+set(dbusmenu_lxqt_lib_PATCH_VERSION 0)
 
-set(dbusmenu_qt_lib_VERSION ${dbusmenu_qt_lib_SOVERSION}.${dbusmenu_qt_lib_API_VERSION}.${dbusmenu_qt_lib_PATCH_VERSION})
+set(dbusmenu_lxqt_lib_VERSION ${dbusmenu_lxqt_lib_SOVERSION}.${dbusmenu_lxqt_lib_API_VERSION}.${dbusmenu_lxqt_lib_PATCH_VERSION})
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
 include_directories(${Qt6Widgets_INCLUDE_DIRS} ${Qt6DBus_INCLUDE_DIRS})
@@ -54,7 +54,7 @@ set(CMAKECONFIG_INSTALL_DIR "${LIB_DESTINATION}/cmake/dbusmenu-lxqt")
 set(INCLUDE_INSTALL_DIR "include/dbusmenu-lxqt")
 
 # dist targets
-set(ARCHIVE_NAME libdbusmenu-lxqt-${dbusmenu_qt_VERSION})
+set(ARCHIVE_NAME libdbusmenu-lxqt-${dbusmenu_lxqt_VERSION})
 add_custom_target(dist
     COMMAND bzr export --root=${ARCHIVE_NAME} ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.bz2
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -73,7 +73,7 @@ add_custom_target(distcheck
     )
 add_dependencies(distcheck dist)
 
-configure_file(dbusmenu-qt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc @ONLY)
+configure_file(dbusmenu-lxqt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc @ONLY)
 
 install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc
         DESTINATION ${LIB_DESTINATION}/pkgconfig
@@ -95,9 +95,9 @@ if(WITH_DOC)
         )
 endif(WITH_DOC)
 
-# Generate dbusmenu-qt-config* files
+# Generate dbusmenu-lxqt-config* files
 configure_package_config_file(
-    dbusmenu-qt-config.cmake.in
+    dbusmenu-lxqt-config.cmake.in
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config.cmake
     INSTALL_DESTINATION ${CMAKECONFIG_INSTALL_DIR}
     PATH_VARS INCLUDE_INSTALL_DIR
@@ -105,11 +105,11 @@ configure_package_config_file(
 
 write_basic_package_version_file(
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config-version.cmake
-    VERSION ${dbusmenu_qt_VERSION}
+    VERSION ${dbusmenu_lxqt_VERSION}
     COMPATIBILITY SameMajorVersion
     )
 
-# Install dbusmenu-qt-config* files
+# Install dbusmenu-lxqt-config* files
 install(FILES
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config.cmake
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config-version.cmake

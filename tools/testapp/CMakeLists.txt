@@ -2,7 +2,7 @@ set(qtapp_SRCS
     main.cpp
     )
 
-add_executable(dbusmenubench-qtapp ${qtapp_SRCS})
+add_executable(dbusmenubench-lxqtapp ${qtapp_SRCS})
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src
@@ -14,7 +14,7 @@ include_directories(
     ${QJSON_INCLUDE_DIR}
     )
 
-target_link_libraries(dbusmenubench-qtapp
+target_link_libraries(dbusmenubench-lxqtapp
     dbusmenu-lxqt
     ${Qt6Gui_LIBRARIES}
     ${Qt6Core_LIBRARIES}

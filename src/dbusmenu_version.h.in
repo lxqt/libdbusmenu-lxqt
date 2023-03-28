@@ -21,9 +21,9 @@
 #ifndef DBUSMENUQT_VERSION_H
 #define DBUSMENUQT_VERSION_H
 
-#define DBUSMENUQT_VERSION_MAJOR @dbusmenu_qt_VERSION_MAJOR@
-#define DBUSMENUQT_VERSION_MINOR @dbusmenu_qt_VERSION_MINOR@
-#define DBUSMENUQT_VERSION_PATCH @dbusmenu_qt_VERSION_PATCH@
+#define DBUSMENUQT_VERSION_MAJOR @dbusmenu_lxqt_VERSION_MAJOR@
+#define DBUSMENUQT_VERSION_MINOR @dbusmenu_lxqt_VERSION_MINOR@
+#define DBUSMENUQT_VERSION_PATCH @dbusmenu_lxqt_VERSION_PATCH@
 
 #define DBUSMENUQT_MAKE_VERSION(a, b, c) (((a) << 16) | ((b) << 8) | (c))
 
@@ -32,7 +32,7 @@
     DBUSMENUQT_VERSION_MINOR, \
     DBUSMENUQT_VERSION_PATCH)
 
-// Use this macro to add code which depends on a minimum version of dbusmenu-qt
+// Use this macro to add code which depends on a minimum version of dbusmenu-lxqt
 #define DBUSMENUQT_IS_VERSION(a, b, c) \
     (DBUSMENUQT_VERSION >= DBUSMENUQT_MAKE_VERSION(a, b, c))
 
