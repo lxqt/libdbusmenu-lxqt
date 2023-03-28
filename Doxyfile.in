@@ -4,8 +4,8 @@
 # Project related configuration options
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME           = dbusmenu-qt
-PROJECT_NUMBER         = @dbusmenu_qt_VERSION@
+PROJECT_NAME           = dbusmenu-lxqt
+PROJECT_NUMBER         = @dbusmenu_lxqt_VERSION@
 PROJECT_BRIEF          =
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       =

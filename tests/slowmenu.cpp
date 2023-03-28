@@ -26,7 +26,7 @@
 #include <QtGui>
 #include <QApplication>
 
-static const char *TEST_SERVICE = "org.kde.dbusmenu-qt-test";
+static const char *TEST_SERVICE = "org.kde.dbusmenu-lxqt-test";
 static const char *TEST_OBJECT_PATH = "/TestMenuBar";
 
 SlowMenu::SlowMenu()

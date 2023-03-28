@@ -28,7 +28,7 @@
 // Qt
 #include <QtCore/QtGlobal>
 
-#ifdef dbusmenu_qt_EXPORTS
+#ifdef dbusmenu_lxqt_EXPORTS
 #define DBUSMENU_EXPORT Q_DECL_EXPORT
 #else
 #define DBUSMENU_EXPORT Q_DECL_IMPORT
