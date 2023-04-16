@@ -24,7 +24,7 @@
 // Qt
 #include <QtTest>
 
-// DBusMenuQt
+// DBusMenuLXQt
 #include <dbusmenushortcut_p.h>
 #include <debug_p.h>
 
