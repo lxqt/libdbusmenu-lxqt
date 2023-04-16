@@ -29,7 +29,7 @@
 #include <QMenu>
 #include <QtTest>
 
-// DBusMenuQt
+// DBusMenuLXQt
 #include <dbusmenuexporter.h>
 #include <dbusmenutypes_p.h>
 #include <dbusmenushortcut_p.h>
