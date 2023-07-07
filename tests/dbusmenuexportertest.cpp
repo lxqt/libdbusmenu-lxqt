@@ -77,7 +77,7 @@ void DBusMenuExporterTest::testGetSomeProperties_data()
 
     QTest::newRow("label only")           << "label" << QString()   << true;
     QTest::newRow("disabled, label only") << "label" << QString()   << false;
-    QTest::newRow("icon name")            << "label" << "edit-undo" << true;
+    QTest::newRow("icon name")            << "label" << "CMakeSetup" << true;
 }
 
 void DBusMenuExporterTest::testGetSomeProperties()
@@ -152,7 +152,7 @@ void DBusMenuExporterTest::testGetAllProperties()
 
     QAction *a2 = new QAction("a2", &inputMenu);
     a2->setEnabled(false);
-    QIcon icon = QIcon::fromTheme("edit-undo");
+    QIcon icon = QIcon::fromTheme("CMakeSetup");
     QVERIFY(!icon.isNull());
     a2->setIcon(icon);
     a2->setVisible(false);
@@ -168,13 +168,16 @@ void DBusMenuExporterTest::testGetAllProperties()
 
     // Check we get the right properties
     DBusMenuLayoutItem item = list.takeFirst();
-    QCOMPARE(QSet<QString>(item.properties.keys().begin(), item.properties.keys().end()), a1Properties);
+    auto keys = item.properties.keys();
+    QCOMPARE(QSet<QString>(keys.begin(), keys.end()), a1Properties);
 
     item = list.takeFirst();
-    QCOMPARE(QSet<QString>(item.properties.keys().begin(), item.properties.keys().end()), separatorProperties);
+    keys = item.properties.keys();
+    QCOMPARE(QSet<QString>(keys.begin(), keys.end()), separatorProperties);
 
     item = list.takeFirst();
-    QCOMPARE(QSet<QString>(item.properties.keys().begin(), item.properties.keys().end()), a2Properties);
+    keys = item.properties.keys();
+    QCOMPARE(QSet<QString>(keys.begin(), keys.end()), a2Properties);
 }
 
 void DBusMenuExporterTest::testGetNonExistentProperty()
@@ -609,7 +612,7 @@ void DBusMenuExporterTest::testHonorDontShowIconsInMenusAttribute()
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     QAction *action = new QAction("Undo", &inputMenu);
-    QIcon icon = QIcon::fromTheme("edit-undo");
+    QIcon icon = QIcon::fromTheme("CMakeSetup");
     QVERIFY(!icon.isNull());
     action->setIcon(icon);
     inputMenu.addAction(action);
