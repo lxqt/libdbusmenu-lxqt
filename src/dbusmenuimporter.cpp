@@ -339,7 +339,7 @@ DBusMenuImporter::DBusMenuImporter(const QString &service, const QString &path, 
 
     d->m_type = type;
 
-    connect(&d->m_mapper, SIGNAL(mapped(int)), SLOT(sendClickedEvent(int)));
+    connect(&d->m_mapper, SIGNAL(mappedInt(int)), SLOT(sendClickedEvent(int)));
 
     d->m_pendingLayoutUpdateTimer = new QTimer(this);
     d->m_pendingLayoutUpdateTimer->setSingleShot(true);
