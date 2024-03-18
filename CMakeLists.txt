@@ -24,6 +24,10 @@ set(dbusmenu_lxqt_lib_PATCH_VERSION 0)
 
 set(dbusmenu_lxqt_lib_VERSION ${dbusmenu_lxqt_lib_SOVERSION}.${dbusmenu_lxqt_lib_API_VERSION}.${dbusmenu_lxqt_lib_PATCH_VERSION})
 
+if(WITH_DOC)
+find_package(Doxygen REQUIRED)
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
 include_directories(${Qt6Widgets_INCLUDE_DIRS} ${Qt6DBus_INCLUDE_DIRS})
 set(CMAKE_AUTOMOC ON)
