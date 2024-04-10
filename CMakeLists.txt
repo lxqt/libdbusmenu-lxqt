@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.1.8)
 project(dbusmenu-lxqt)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 # Build options
-option(WITH_DOC "Build documentation (requires Doxygen)" ON)
+option(WITH_DOC "Build documentation (requires Doxygen)" OFF)
 
 # Versions
 ## Package version
@@ -25,7 +25,7 @@ set(dbusmenu_lxqt_lib_PATCH_VERSION 0)
 set(dbusmenu_lxqt_lib_VERSION ${dbusmenu_lxqt_lib_SOVERSION}.${dbusmenu_lxqt_lib_API_VERSION}.${dbusmenu_lxqt_lib_PATCH_VERSION})
 
 if(WITH_DOC)
-find_package(Doxygen REQUIRED)
+    find_package(Doxygen REQUIRED)
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
