@@ -26,23 +26,8 @@ if (__DBUSMENU_HAVE_CXX17)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif (__DBUSMENU_HAVE_CXX17)
 
-# Check whether QIcon::name() exists. It was added in late Qt 4.7 cycle, and is
-# not present in betas.
-
 set(CMAKE_REQUIRED_INCLUDES "${Qt6Gui_INCLUDE_DIRS};${Qt6Core_INCLUDE_DIRS}")
 set(CMAKE_REQUIRED_LIBRARIES "${Qt6Gui_LIBRARIES};${Qt6Core_LIBRARIES}")
-check_cxx_source_compiles("
-#include <QtGui/QIcon>
-int main() {
-    QIcon icon;
-    icon.name();
-    return 0;
-}
-" HAVE_QICON_NAME)
-if (NOT HAVE_QICON_NAME)
-    message(STATUS "QIcon::name() does not exist, DBusMenuExporter will not export icon names by itself")
-endif()
-configure_file(dbusmenu_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/dbusmenu_config.h @ONLY)
 
 set(dbusmenu_lxqt_SRCS
     dbusmenu_p.cpp
