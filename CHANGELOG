@@ -1,0 +1,6 @@
+libdbusmenu-lxqt-0.1.0 / 2024-04-17
+===================================
+ * Forked from libdbusmenu-qt and ported to Qt6.
+ * Do not build documentation by default.
+ * Require Doxygen when building documentation.
+ * Fixed triggering of menu actions with Qt6.
