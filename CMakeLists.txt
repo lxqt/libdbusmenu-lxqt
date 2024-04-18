@@ -33,6 +33,10 @@ include_directories(${Qt6Widgets_INCLUDE_DIRS} ${Qt6DBus_INCLUDE_DIRS})
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
 include (CheckCXXCompilerFlag)
 # Check some compiler flags
 check_cxx_compiler_flag(-fvisibility=hidden __DBUSMENU_HAVE_GCC_VISIBILITY)
@@ -44,11 +48,6 @@ check_cxx_compiler_flag(-Woverloaded-virtual __DBUSMENU_HAVE_W_OVERLOADED_VIRTUA
 if (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
 endif (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-
-check_cxx_compiler_flag(-std=c++17 __DBUSMENU_HAVE_CXX17)
-if (__DBUSMENU_HAVE_CXX17)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-endif (__DBUSMENU_HAVE_CXX17)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
