@@ -815,4 +815,3 @@ void DBusMenuExporterTest::testGetIconDataProperty()
     QCOMPARE(result, img);
 }
 
-#include "dbusmenuexportertest.moc"

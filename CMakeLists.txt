@@ -31,7 +31,6 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
 include_directories(${Qt6Widgets_INCLUDE_DIRS} ${Qt6DBus_INCLUDE_DIRS})
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOMOC_RELAXED_MODE ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include (CheckCXXCompilerFlag)
