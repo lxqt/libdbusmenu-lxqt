@@ -6,11 +6,6 @@ if (__DBUSMENU_HAVE_W_ALL)
 endif (__DBUSMENU_HAVE_W_ALL)
 
 # Check some compiler flags
-check_cxx_compiler_flag(-fvisibility=hidden __DBUSMENU_HAVE_GCC_VISIBILITY)
-if (__DBUSMENU_HAVE_GCC_VISIBILITY AND NOT WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-endif (__DBUSMENU_HAVE_GCC_VISIBILITY AND NOT WIN32)
-
 check_cxx_compiler_flag(-Woverloaded-virtual __DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
 if (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
