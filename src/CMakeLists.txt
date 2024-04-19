@@ -1,6 +1,3 @@
-set(CMAKE_REQUIRED_INCLUDES "${Qt6Gui_INCLUDE_DIRS};${Qt6Core_INCLUDE_DIRS}")
-set(CMAKE_REQUIRED_LIBRARIES "${Qt6Gui_LIBRARIES};${Qt6Core_LIBRARIES}")
-
 set(dbusmenu_lxqt_SRCS
     dbusmenu_p.cpp
     dbusmenuexporter.cpp
