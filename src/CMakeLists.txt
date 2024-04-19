@@ -8,11 +8,6 @@ set(dbusmenu_lxqt_SRCS
     utils.cpp
     )
 
-include_directories(
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_BINARY_DIR}/src
-    )
-
 qt6_add_dbus_adaptor(dbusmenu_lxqt_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/com.canonical.dbusmenu.xml
     ${CMAKE_CURRENT_SOURCE_DIR}/dbusmenuexporterdbus_p.h DBusMenuExporterDBus
