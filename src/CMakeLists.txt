@@ -5,12 +5,6 @@ if (__DBUSMENU_HAVE_W_ALL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif (__DBUSMENU_HAVE_W_ALL)
 
-# Check some compiler flags
-check_cxx_compiler_flag(-Woverloaded-virtual __DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-if (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
-endif (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-
 check_cxx_compiler_flag(-Wall __DBUSMENU_HAVE_W_ALL)
 if (__DBUSMENU_HAVE_W_ALL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
