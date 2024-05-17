@@ -19,8 +19,8 @@ have to be set as well.
 To build run `make`, to install `make install`, which accepts the variable `DESTDIR`
 as usual.
 
-### Author
+### Binary packages
 
-Canonical DX Team
-Maintainer: Renato Filho <renato.filho@canonical.com>
-Former maintainer: Aurélien Gâteau
+The library is or will be provided by all major Linux distributions like Arch Linux,
+Debian, Fedora and openSUSE. Just use your package manager to search for string
+`libdbusmenu-lxqt`.
