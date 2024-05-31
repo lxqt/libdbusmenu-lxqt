@@ -20,9 +20,6 @@ set(test_LIBRARIES
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${CMAKE_CURRENT_BINARY_DIR}/../src
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${Qt6Test_INCLUDE_DIRS}
-    ${Qt6DBus_INCLUDE_DIRS}
     )
 
 # Macros to create "check" target

@@ -29,53 +29,37 @@ if(WITH_DOC)
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
-include_directories(${Qt6Widgets_INCLUDE_DIRS} ${Qt6DBus_INCLUDE_DIRS})
+
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOMOC_RELAXED_MODE ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+# Default to hidden visibility for symbols
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 include (CheckCXXCompilerFlag)
 # Check some compiler flags
-check_cxx_compiler_flag(-fvisibility=hidden __DBUSMENU_HAVE_GCC_VISIBILITY)
-if (__DBUSMENU_HAVE_GCC_VISIBILITY AND NOT WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-endif (__DBUSMENU_HAVE_GCC_VISIBILITY AND NOT WIN32)
-
 check_cxx_compiler_flag(-Woverloaded-virtual __DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
 if (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
 endif (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
 
-check_cxx_compiler_flag(-std=c++17 __DBUSMENU_HAVE_CXX17)
-if (__DBUSMENU_HAVE_CXX17)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-endif (__DBUSMENU_HAVE_CXX17)
+check_cxx_compiler_flag(-Wall __DBUSMENU_HAVE_W_ALL)
+if (__DBUSMENU_HAVE_W_ALL)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+endif (__DBUSMENU_HAVE_W_ALL)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 set(LIB_DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 set(CMAKECONFIG_INSTALL_DIR "${LIB_DESTINATION}/cmake/dbusmenu-lxqt")
 set(INCLUDE_INSTALL_DIR "include/dbusmenu-lxqt")
-
-# dist targets
-set(ARCHIVE_NAME libdbusmenu-lxqt-${dbusmenu_lxqt_VERSION})
-add_custom_target(dist
-    COMMAND bzr export --root=${ARCHIVE_NAME} ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.bz2
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-add_custom_target(distcheck
-    COMMAND cd ${CMAKE_BINARY_DIR}
-    && rm -rf ${ARCHIVE_NAME}
-    && tar xf ${ARCHIVE_NAME}.tar.bz2
-    && mkdir ${ARCHIVE_NAME}/build
-    && cd ${ARCHIVE_NAME}/build
-    && cmake -DCMAKE_INSTALL_PREFIX=../install ..
-    && make
-    && make install
-    && make check
-    )
-add_dependencies(distcheck dist)
 
 configure_file(dbusmenu-lxqt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc @ONLY)
 
