@@ -6,7 +6,7 @@ libdbusmenu-lxqt-0.2.0 / 2024-11-05
  * Remove Bazaar stuff.
  * Use CMake to set the CXX standard in use.
  * Use CMake to set the symbol visibility.
- * Remove duplicated duplicated compiler flags.
+ * Remove duplicated compiler flags.
  * Move compiler flag check/set.
  * Update Qt6 include directories use.
  * Update self include directories.
