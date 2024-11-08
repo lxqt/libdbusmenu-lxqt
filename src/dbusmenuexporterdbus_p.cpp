@@ -94,7 +94,7 @@ QVariantMap DBusMenuExporterDBus::getProperties(int id, const QStringList &names
         return all;
     } else {
         QVariantMap map;
-        Q_FOREACH(const QString &name, names) {
+        for (const QString &name : names) {
             QVariant value = all.value(name);
             if (value.isValid()) {
                 map.insert(name, value);
@@ -107,7 +107,7 @@ QVariantMap DBusMenuExporterDBus::getProperties(int id, const QStringList &names
 DBusMenuItemList DBusMenuExporterDBus::GetGroupProperties(const QList<int> &ids, const QStringList &names)
 {
     DBusMenuItemList list;
-    Q_FOREACH(int id, ids) {
+    for (int id : ids) {
         DBusMenuItem item;
         item.id = id;
         item.properties = getProperties(item.id, names);
