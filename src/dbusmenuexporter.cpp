@@ -61,7 +61,8 @@ void DBusMenuExporterPrivate::addMenu(QMenu *menu, int parentId)
         return;
     }
     new DBusMenu(menu, q, parentId);
-    Q_FOREACH(QAction *action, menu->actions()) {
+    const auto mActions = menu->actions();
+    for (QAction *action : mActions) {
         addAction(action, parentId);
     }
 }
@@ -157,7 +158,8 @@ void DBusMenuExporterPrivate::fillLayoutItem(DBusMenuLayoutItem *item, QMenu *me
     item->properties = m_dbusObject->getProperties(id, propertyNames);
 
     if (depth != 0 && menu) {
-        Q_FOREACH(QAction *action, menu->actions()) {
+        const auto mActions = menu->actions();
+        for (QAction *action : mActions) {
             int actionId = m_idForAction.value(action, -1);
             if (actionId == -1) {
                 DMWARNING << "No id for action";
@@ -367,7 +369,7 @@ void DBusMenuExporter::doUpdateActions()
     DBusMenuItemList updatedList;
     DBusMenuItemKeysList removedList;
 
-    Q_FOREACH(int id, d->m_itemUpdatedIds) {
+    for (int id : std::as_const(d->m_itemUpdatedIds)) {
         QAction *action = d->m_actionForId.value(id);
         if (!action) {
             // Action does not exist anymore
@@ -444,7 +446,7 @@ void DBusMenuExporter::doUpdateActions()
 void DBusMenuExporter::doEmitLayoutUpdated()
 {
     // Collapse separators for all updated menus
-    Q_FOREACH(int id, d->m_layoutUpdatedIds) {
+    for (int id : std::as_const(d->m_layoutUpdatedIds)) {
         QMenu* menu = d->menuForId(id);
         if (menu && menu->separatorsCollapsible()) {
             d->collapseSeparators(menu);
@@ -453,7 +455,7 @@ void DBusMenuExporter::doEmitLayoutUpdated()
 
     // Tell the world about the update
     if (d->m_emittedLayoutUpdatedOnce) {
-        Q_FOREACH(int id, d->m_layoutUpdatedIds) {
+        for (int id : std::as_const(d->m_layoutUpdatedIds)) {
             d->m_dbusObject->LayoutUpdated(d->m_revision, id);
         }
     } else {

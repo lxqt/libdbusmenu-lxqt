@@ -36,7 +36,7 @@ template<>
 char *toString(const DBusMenuShortcut &dmShortcut)
 {
     QByteArray ba = "DBusMenuShortcut(";
-    Q_FOREACH(const QStringList& tokens, dmShortcut) {
+    for(const QStringList& tokens : dmShortcut) {
         ba += "(";
         ba += tokens.join("+").toUtf8();
         ba += ")";
@@ -49,8 +49,8 @@ char *toString(const DBusMenuShortcut &dmShortcut)
 DBusMenuShortcut createKeyList(const QString& txt)
 {
     DBusMenuShortcut lst;
-    QStringList tokens = txt.split(',');
-    Q_FOREACH(const QString& token, tokens) {
+    const QStringList tokens = txt.split(',');
+    for (const QString& token : tokens) {
         lst << token.split('+');
     }
     return lst;

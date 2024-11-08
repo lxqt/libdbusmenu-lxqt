@@ -242,7 +242,7 @@ void DBusMenuImporterTest::testActionsAreDeletedWhenImporterIs()
     waitForDeferredDeletes();
 
     // There should be only invalid pointers in children
-    Q_FOREACH(QPointer<QObject> child, children) {
+    for (QPointer<QObject> child : std::as_const(children)) {
         //qDebug() << child;
         QVERIFY(child.isNull());
     }

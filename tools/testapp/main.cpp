@@ -50,8 +50,8 @@ void createMenuItem(QMenu *menu, const QVariant &item)
     QAction *action = menu->addAction(label);
     action->setEnabled(map.value("sensitive").toString() == "true");
     if (map.contains("submenu")) {
-        QVariantList items = map.value("submenu").toList();
-        Q_FOREACH(const QVariant &item, items) {
+        const QVariantList items = map.value("submenu").toList();
+        for (const QVariant &item : items) {
             QMenu *subMenu = new QMenu;
             action->setMenu(subMenu);
             createMenuItem(subMenu, item);
@@ -76,8 +76,8 @@ void initMenu(QMenu *menu, const QString &fileName)
         return;
     }
 
-    QVariantList list = tree.toList();
-    Q_FOREACH(const QVariant &item, list) {
+    const QVariantList list = tree.toList();
+    for (const QVariant &item : list) {
         createMenuItem(menu, item);
     }
 }
