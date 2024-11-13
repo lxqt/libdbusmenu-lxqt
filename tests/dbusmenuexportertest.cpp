@@ -352,8 +352,8 @@ void DBusMenuExporterTest::testRadioItems()
     QCOMPARE(spy.count(), 1);
     QSet<int> updatedIds;
     {
-        QVariantList lst = spy.takeFirst().at(0).toList();
-        Q_FOREACH(QVariant variant, lst) {
+        const QVariantList lst = spy.takeFirst().at(0).toList();
+        for (const QVariant &variant : lst) {
             updatedIds << variant.toInt();
         }
     }
@@ -482,7 +482,7 @@ void DBusMenuExporterTest::testMenuShortcut()
     DBusMenuLayoutItemList list = getChildren(&iface, 0, propertyNames);
     QCOMPARE(list.count(), actionList.count());
 
-    Q_FOREACH(const QAction* action, actionList) {
+    for (const QAction* action : std::as_const(actionList)) {
         DBusMenuLayoutItem item = list.takeFirst();
         if (action->shortcut().isEmpty()) {
             QVERIFY(!item.properties.contains("shortcut"));
@@ -510,9 +510,11 @@ void DBusMenuExporterTest::testGetGroupProperties()
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
     QVERIFY2(iface.isValid(), qPrintable(iface.lastError().message()));
 
+    const auto iActions = inputMenu.actions();
+
     // Get item ids
     DBusMenuLayoutItemList list = getChildren(&iface, 0, QStringList());
-    QCOMPARE(list.count(), inputMenu.actions().count());
+    QCOMPARE(list.count(), iActions.count());
 
     int id1 = list.at(0).id;
     int id2 = list.at(1).id;
@@ -524,9 +526,9 @@ void DBusMenuExporterTest::testGetGroupProperties()
     DBusMenuItemList groupPropertiesList = reply.value();
 
     // Check the info we received
-    QCOMPARE(groupPropertiesList.count(), inputMenu.actions().count());
+    QCOMPARE(groupPropertiesList.count(), iActions.count());
 
-    Q_FOREACH(const QAction* action, inputMenu.actions()) {
+    for (const QAction* action : iActions) {
         DBusMenuItem item = groupPropertiesList.takeFirst();
         QCOMPARE(item.properties.value("label").toString(), action->text());
     }
@@ -569,9 +571,9 @@ void DBusMenuExporterTest::testActivateAction()
 
 static int trackCount(QMenu* menu)
 {
-    QList<QObject*> lst = menu->findChildren<QObject*>();
+    const QList<QObject*> lst = menu->findChildren<QObject*>();
     int count = 0;
-    Q_FOREACH(QObject* child, lst) {
+    for (QObject* child : lst) {
         if (qstrcmp(child->metaObject()->className(), "DBusMenu") == 0) {
             ++count;
         }
@@ -631,7 +633,8 @@ void DBusMenuExporterTest::testHonorDontShowIconsInMenusAttribute()
 
 static bool hasInternalDBusMenuObject(QMenu* menu)
 {
-    Q_FOREACH(QObject* obj, menu->children()) {
+    const auto mChildren = menu->children();
+    for (QObject* obj : mChildren) {
         if (obj->inherits("DBusMenu")) {
             return true;
         }
@@ -686,7 +689,7 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
         delete inputMenu.addAction("dummy");
     }
 
-    Q_FOREACH(QChar ch, input) {
+    for (QChar ch : std::as_const(input)) {
         if (ch == '-') {
             inputMenu.addSeparator();
         } else {
@@ -702,11 +705,11 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
 
     // Get exported menu info
     QStringList propertyNames = QStringList();
-    DBusMenuLayoutItemList list = getChildren(&iface, /*parentId=*/0, propertyNames);
+    const DBusMenuLayoutItemList list = getChildren(&iface, /*parentId=*/0, propertyNames);
 
     // Recreate a menu string from the item list
     QString output;
-    Q_FOREACH(const DBusMenuLayoutItem& item, list) {
+    for (const DBusMenuLayoutItem& item : list) {
         QVariantMap properties = item.properties;
         if (properties.contains("visible") && !properties.value("visible").toBool()) {
             continue;

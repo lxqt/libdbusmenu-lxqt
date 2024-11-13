@@ -52,11 +52,11 @@ public Q_SLOTS:
     void receiveCall(DBusMenuItemList itemList, DBusMenuItemKeysList removedPropsList)
     {
         QVariantList propsIds;
-        Q_FOREACH(DBusMenuItem item, itemList) {
+        for (DBusMenuItem item : std::as_const(itemList)) {
             propsIds << item.id;
         }
         QVariantList removedPropsIds;
-        Q_FOREACH(DBusMenuItemKeys props, removedPropsList) {
+        for (DBusMenuItemKeys props : std::as_const(removedPropsList)) {
             removedPropsIds << props.id;
         }
 
