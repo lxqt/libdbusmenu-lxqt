@@ -52,6 +52,7 @@ static const char *DBUSMENU_INTERFACE = "com.canonical.dbusmenu";
 
 static const int ABOUT_TO_SHOW_TIMEOUT = 3000;
 static const int REFRESH_TIMEOUT = 4000;
+static const int LAYOUT_UPDATE_TIMEOUT = 2000;
 
 static const char *DBUSMENU_PROPERTY_ID = "_dbusmenu_id";
 static const char *DBUSMENU_PROPERTY_ICON_NAME = "_dbusmenu_icon_name";
@@ -73,6 +74,25 @@ static QAction *createKdeTitle(QAction *action, QWidget *parent)
     return titleAction;
 }
 
+Menu::Menu(QWidget *parent) : QMenu(parent), blockEvents(false) {}
+
+bool Menu::event(QEvent *e) {
+    if (blockEvents
+        // These events are dangerous while actions are being replaced:
+        && (e->type() == QEvent::Timer ||
+            e->type() == QEvent::MouseMove ||
+            e->type() == QEvent::MouseButtonPress ||
+            e->type() == QEvent::MouseButtonRelease ||
+            e->type() == QEvent::KeyPress ||
+            e->type() == QEvent::KeyRelease ||
+            e->type() == QEvent::Leave ||
+            e->type() == QEvent::Enter)) {
+        e->accept();
+        return true;
+    }
+    return QMenu::event(e);
+}
+
 class DBusMenuImporterPrivate
 {
 public:
@@ -84,6 +104,7 @@ public:
     ActionForId m_actionForId;
     QSignalMapper m_mapper;
     QTimer *m_pendingLayoutUpdateTimer;
+    bool m_refreshing;
 
     QSet<int> m_idsRefreshedByAboutToShow;
     QSet<int> m_pendingLayoutUpdates;
@@ -98,6 +119,9 @@ public:
         DMDEBUG << "Starting refresh chrono for id" << id;
         sChrono.start();
         #endif
+
+        m_refreshing = true;
+
         QDBusPendingCall call = m_interface->asyncCall("GetLayout", id, 1, QStringList());
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, q);
         watcher->setProperty(DBUSMENU_PROPERTY_ID, id);
@@ -336,6 +360,7 @@ DBusMenuImporter::DBusMenuImporter(const QString &service, const QString &path, 
     d->m_interface = new QDBusInterface(service, path, DBUSMENU_INTERFACE, QDBusConnection::sessionBus(), this);
     d->m_menu = 0;
     d->m_mustEmitMenuUpdated = false;
+    d->m_refreshing = false;
 
     d->m_type = type;
 
@@ -343,6 +368,18 @@ DBusMenuImporter::DBusMenuImporter(const QString &service, const QString &path, 
 
     d->m_pendingLayoutUpdateTimer = new QTimer(this);
     d->m_pendingLayoutUpdateTimer->setSingleShot(true);
+    /**
+     * WARNING: To avoid a Qt bug triggered by "QMenu::timerEvent" on refreshing
+     * a menu that has a visible submenu, a minimum interval of two seconds is
+     * set between two consecutive updates for the sake of certainty.
+     *
+     * With intervals shorter than one second, the pointer "d->currentAction" in
+     * QMenu's code may become dangling and cause a crash.
+     *
+     * To be on the safe side, we also use "Menu", instead of QMenu, to block some
+     * events during updates, especially the timer events.
+     */
+    d->m_pendingLayoutUpdateTimer->setInterval(LAYOUT_UPDATE_TIMEOUT);
     connect(d->m_pendingLayoutUpdateTimer, SIGNAL(timeout()), SLOT(processPendingLayoutUpdates()));
 
     // For some reason, using QObject::connect() does not work but
@@ -371,8 +408,10 @@ void DBusMenuImporter::slotLayoutUpdated(uint revision, int parentId)
     if (d->m_idsRefreshedByAboutToShow.remove(parentId)) {
         return;
     }
-    d->m_pendingLayoutUpdates << parentId;
-    if (!d->m_pendingLayoutUpdateTimer->isActive()) {
+    if (!d->m_pendingLayoutUpdates.contains(parentId)) {
+        d->m_pendingLayoutUpdates << parentId;
+    }
+    if (!d->m_pendingLayoutUpdateTimer->isActive() && !d->m_refreshing) {
         d->m_pendingLayoutUpdateTimer->start();
     }
 }
@@ -439,6 +478,7 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     QDBusPendingReply<uint, DBusMenuLayoutItem> reply = *watcher;
     if (!reply.isValid()) {
         DMWARNING << reply.error().message();
+        d->m_refreshing = false;
         return;
     }
 
@@ -450,8 +490,22 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     QMenu *menu = d->menuForId(parentId);
     if (!menu) {
         DMWARNING << "No menu for id" << parentId;
+        d->m_refreshing = false;
         return;
     }
+
+    // Block some menu events while actions are reloaded.
+    auto m = qobject_cast<Menu*>(menu);
+    if (m) {
+        m->blockEvents = true;
+    }
+
+    // Try to restore the active action, such that a visible submenu
+    // will be reopened after reloading actions.
+    menu->setUpdatesEnabled(false);
+    int activeIndex = menu->actions().indexOf(menu->activeAction());
+    QAction *activeAction = nullptr;
+    int index = 0;
 
     menu->clear();
 
@@ -470,11 +524,45 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
             &d->m_mapper, SLOT(map()));
         d->m_mapper.setMapping(action, dbusMenuItem.id);
 
-        if( action->menu() )
-        {
-          d->refresh( dbusMenuItem.id )->waitForFinished();
+        if (index == activeIndex) {
+            if (action->isEnabled() && !action->isSeparator()) {
+                activeAction = action;
+            }
+            else {
+                ++activeIndex;
+            }
+        }
+        ++index;
+
+        // NOTE: The new submenus will be refreshed in "slotMenuAboutToShow" on showing.
+        // So, a recursive call "d->refresh(dbusMenuItem.id)" is not needed here.
+    }
+
+    if (activeIndex > -1 && !activeAction) { // try to activate the last action
+        const auto acts = menu->actions();
+        for (int i = acts.size() -1; i >= 0; --i) {
+            auto act = acts.at(i);
+            if (act->isEnabled() && !act->isSeparator()) {
+                activeAction = act;
+                break;
+            }
         }
     }
+    if (activeAction) {
+        menu->setActiveAction(activeAction);
+    }
+    menu->setUpdatesEnabled(true);
+
+    if (m) {
+        m->blockEvents = false;
+    }
+
+    // The next update of pending layouts, if any.
+    d->m_refreshing = false;
+    if (d->m_pendingLayoutUpdateTimer) {
+        d->m_pendingLayoutUpdateTimer->start();
+    }
+
     #ifdef BENCHMARK
     DMDEBUG << "- Menu filled:" << sChrono.elapsed() << "ms";
     #endif
@@ -575,7 +663,7 @@ void DBusMenuImporter::slotMenuAboutToHide()
 
 QMenu *DBusMenuImporter::createMenu(QWidget *parent)
 {
-    return new QMenu(parent);
+    return new Menu(parent); // use "Menu" for our workaround
 }
 
 QIcon DBusMenuImporter::iconForName(const QString &/*name*/)

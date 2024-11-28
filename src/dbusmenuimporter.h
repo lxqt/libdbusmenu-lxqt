@@ -23,6 +23,7 @@
 
 // Qt
 #include <QtCore/QObject>
+#include <QMenu>
 
 // Local
 #include <dbusmenu_export.h>
@@ -32,9 +33,20 @@ class QDBusAbstractInterface;
 class QDBusPendingCallWatcher;
 class QDBusVariant;
 class QIcon;
-class QMenu;
+class QEvent;
 
 class DBusMenuImporterPrivate;
+
+// For working around a crash triggered by "QMenu::timerEvent"
+class Menu : public QMenu {
+    Q_OBJECT
+public:
+    Menu(QWidget *parent = nullptr);
+    bool blockEvents;
+
+protected:
+    bool event(QEvent *e) override;
+};
 
 /**
  * Determine whether internal method calls should allow the Qt event loop
