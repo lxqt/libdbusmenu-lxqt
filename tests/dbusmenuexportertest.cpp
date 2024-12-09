@@ -494,6 +494,7 @@ void DBusMenuExporterTest::testMenuShortcut()
             QCOMPARE(shortcut.toKeySequence(), action->shortcut());
         }
     }
+    delete exporter;
 }
 
 void DBusMenuExporterTest::testGetGroupProperties()
@@ -532,6 +533,7 @@ void DBusMenuExporterTest::testGetGroupProperties()
         DBusMenuItem item = groupPropertiesList.takeFirst();
         QCOMPARE(item.properties.value("label").toString(), action->text());
     }
+    delete exporter;
 }
 
 void DBusMenuExporterTest::testActivateAction()
@@ -567,6 +569,7 @@ void DBusMenuExporterTest::testActivateAction()
     QCOMPARE(spy.count(), 2);
     QCOMPARE(spy.takeFirst().at(0).toInt(), id1);
     QCOMPARE(spy.takeFirst().at(0).toInt(), id2);
+    delete exporter;
 }
 
 static int trackCount(QMenu* menu)
@@ -604,6 +607,7 @@ void DBusMenuExporterTest::testTrackActionsOnlyOnce()
 
     QTest::qWait(500);
     QCOMPARE(trackCount(subMenu), 1);
+    delete exporter;
 }
 
 // If desktop does not want icon in menus, check we do not export them
@@ -724,6 +728,7 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
 
     // Check it matches
     QCOMPARE(output, expected);
+    delete exporter;
 }
 
 static void checkPropertiesChangedArgs(const QVariantList& args, const QString& name, const QVariant& value)
@@ -768,6 +773,7 @@ void DBusMenuExporterTest::testSetStatus()
     QTest::qWait(500);
     QCOMPARE(spy.count(), 1);
     checkPropertiesChangedArgs(spy.takeFirst(), "Status", "normal");
+    delete exporter;
 }
 
 void DBusMenuExporterTest::testGetIconDataProperty()
@@ -818,3 +824,4 @@ void DBusMenuExporterTest::testGetIconDataProperty()
     QCOMPARE(result, img);
 }
 
+#include "dbusmenuexportertest.moc"
