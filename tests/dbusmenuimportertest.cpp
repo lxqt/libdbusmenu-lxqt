@@ -58,7 +58,7 @@ void DBusMenuImporterTest::cleanup()
 void DBusMenuImporterTest::testStandardItem()
 {
     QMenu inputMenu;
-    QAction *action = inputMenu.addAction("Test");
+    inputMenu.addAction("Test");
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -73,7 +73,7 @@ void DBusMenuImporterTest::testStandardItem()
 void DBusMenuImporterTest::testAddingNewItem()
 {
     QMenu inputMenu;
-    QAction *action = inputMenu.addAction("Test");
+    inputMenu.addAction("Test");
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -82,7 +82,8 @@ void DBusMenuImporterTest::testAddingNewItem()
     QCOMPARE(outputMenu->actions().count(), inputMenu.actions().count());
 
     inputMenu.addAction("Test2");
-    QTest::qWait(500);
+    inputMenu.addAction("Test3");
+    QTest::qWait(2000); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
     QCOMPARE(outputMenu->actions().count(), inputMenu.actions().count());
 }
 
