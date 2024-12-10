@@ -392,10 +392,10 @@ void DBusMenuExporterTest::testNonExclusiveActionGroup()
     // Check items are checkmark, not radio
     item = list.takeFirst();
     QCOMPARE(item.properties.value("toggle-type").toString(), QString("checkmark"));
-    int a1Id = item.id;
+    //int a1Id = item.id;
     item = list.takeFirst();
     QCOMPARE(item.properties.value("toggle-type").toString(), QString("checkmark"));
-    int a2Id = item.id;
+    //int a2Id = item.id;
 }
 
 void DBusMenuExporterTest::testClickDeletedAction()
@@ -459,7 +459,7 @@ void DBusMenuExporterTest::testMenuShortcut()
     // Create a menu containing an action with a shortcut
     QMenu inputMenu;
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
-    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
+    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu); Q_UNUSED(exporter)
 
     QAction *a1 = inputMenu.addAction("a1");
     a1->setShortcut(Qt::CTRL | Qt::Key_A);
@@ -501,10 +501,10 @@ void DBusMenuExporterTest::testGetGroupProperties()
     // Create a menu containing two actions
     QMenu inputMenu;
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
-    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
+    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu); Q_UNUSED(exporter)
 
-    QAction *a1 = inputMenu.addAction("a1");
-    QAction *a2 = inputMenu.addAction("a2");
+    inputMenu.addAction("a1");
+    inputMenu.addAction("a2");
 
     // Check exporter is on DBus
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -589,7 +589,7 @@ void DBusMenuExporterTest::testTrackActionsOnlyOnce()
     // submenu should not have more than one DBusMenu child object.
     QMenu mainMenu;
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
-    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &mainMenu);
+    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &mainMenu); Q_UNUSED(exporter)
 
     QMenu* subMenu = new QMenu("File");
     subMenu->addAction("a1");
@@ -650,7 +650,7 @@ void DBusMenuExporterTest::testDBusMenuObjectIsDeletedWhenExporterIsDeleted()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
 
-    QAction *a1 = inputMenu.addAction("a1");
+    inputMenu.addAction("a1");
     QVERIFY2(hasInternalDBusMenuObject(&inputMenu), "Test setup failed");
     delete exporter;
     QVERIFY(!hasInternalDBusMenuObject(&inputMenu));
@@ -680,7 +680,7 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
     QMenu inputMenu;
 
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
-    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
+    DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu); Q_UNUSED(exporter)
 
     if (input.isEmpty()) {
         // Pretend there was an action so that doEmitLayoutUpdated() is called
