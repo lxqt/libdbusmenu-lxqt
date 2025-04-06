@@ -1,3 +1,9 @@
+libdbusmenu-lxqt-0.3.0 / 2025-04-17
+===================================
+ * Workaround for a Qt crash on reloading menus.
+ * Got rid of `Q_FOREACH`.
+ * Fixed tests after recent changes.
+
 libdbusmenu-lxqt-0.2.0 / 2024-11-05
 ===================================
  * Stop checking for `QIcon::name()` existence.
