@@ -55,11 +55,6 @@ int DBusMenuExporterPrivate::idForAction(QAction *action) const
 
 void DBusMenuExporterPrivate::addMenu(QMenu *menu, int parentId)
 {
-    if (menu->findChild<DBusMenu *>()) {
-        // This can happen if a menu is removed from its parent and added back
-        // See KDE bug 254066
-        return;
-    }
     new DBusMenu(menu, q, parentId);
     const auto mActions = menu->actions();
     for (QAction *action : mActions) {
@@ -328,8 +323,8 @@ void DBusMenuExporterPrivate::collapseSeparators(QMenu* menu)
 // DBusMenuExporter
 //
 //-------------------------------------------------
-DBusMenuExporter::DBusMenuExporter(const QString &objectPath, QMenu *menu, const QDBusConnection &_connection)
-: QObject(menu)
+DBusMenuExporter::DBusMenuExporter(const QString &objectPath, QMenu *menu, QObject *parent, const QDBusConnection &_connection)
+: QObject(parent)
 , d(new DBusMenuExporterPrivate)
 {
     d->q = this;
@@ -355,6 +350,10 @@ DBusMenuExporter::DBusMenuExporter(const QString &objectPath, QMenu *menu, const
     QDBusConnection connection(_connection);
     connection.registerObject(objectPath, d->m_dbusObject, QDBusConnection::ExportAllContents);
 }
+
+DBusMenuExporter::DBusMenuExporter(const QString &dbusObjectPath, QMenu *menu, const QDBusConnection &dbusConnection/* = QDBusConnection::sessionBus()*/)
+: DBusMenuExporter(dbusObjectPath, menu, menu, dbusConnection)
+{}
 
 DBusMenuExporter::~DBusMenuExporter()
 {
