@@ -8,7 +8,7 @@ option(WITH_DOC "Build documentation (requires Doxygen)" OFF)
 # Versions
 ## Package version
 set(dbusmenu_lxqt_VERSION_MAJOR 0)
-set(dbusmenu_lxqt_VERSION_MINOR 2)
+set(dbusmenu_lxqt_VERSION_MINOR 3)
 set(dbusmenu_lxqt_VERSION_PATCH 0)
 set(dbusmenu_lxqt_VERSION ${dbusmenu_lxqt_VERSION_MAJOR}.${dbusmenu_lxqt_VERSION_MINOR}.${dbusmenu_lxqt_VERSION_PATCH})
 
@@ -17,7 +17,7 @@ set(dbusmenu_lxqt_VERSION ${dbusmenu_lxqt_VERSION_MAJOR}.${dbusmenu_lxqt_VERSION
 set(dbusmenu_lxqt_lib_SOVERSION 0)
 
 ### Bump this one when the API is extended in a binary-compatible way
-set(dbusmenu_lxqt_lib_API_VERSION 2)
+set(dbusmenu_lxqt_lib_API_VERSION 3)
 
 ### Bump this one when changes do not extend the API
 set(dbusmenu_lxqt_lib_PATCH_VERSION 0)
