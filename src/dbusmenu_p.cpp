@@ -31,7 +31,7 @@
 #include "debug_p.h"
 
 DBusMenu::DBusMenu(QMenu *menu, DBusMenuExporter *exporter, int parentId)
-: QObject(menu)
+: QObject(exporter)
 , m_exporter(exporter)
 , m_parentId(parentId)
 {
