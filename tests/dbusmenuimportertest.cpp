@@ -247,6 +247,7 @@ void DBusMenuImporterTest::testActionsAreDeletedWhenImporterIs()
         //qDebug() << child;
         QVERIFY(child.isNull());
     }
+    delete exporter;
 }
 
 void DBusMenuImporterTest::testIconData()
@@ -313,6 +314,9 @@ void DBusMenuImporterTest::testInvisibleItem()
     action->setVisible(true);
     QTest::qWait(500);
     QVERIFY(outputAction->isVisible());
+
+    delete importer;
+    delete exporter;
 }
 
 void DBusMenuImporterTest::testDisabledItem()
@@ -341,3 +345,4 @@ void DBusMenuImporterTest::testDisabledItem()
     QVERIFY(outputAction->isEnabled());
 }
 
+#include "dbusmenuimportertest.moc"
