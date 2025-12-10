@@ -403,7 +403,7 @@ DBusMenuImporter::~DBusMenuImporter()
     delete d;
 }
 
-void DBusMenuImporter::slotLayoutUpdated(uint revision, int parentId)
+void DBusMenuImporter::slotLayoutUpdated(uint /*revision*/, int parentId)
 {
     if (d->m_idsRefreshedByAboutToShow.remove(parentId)) {
         return;
