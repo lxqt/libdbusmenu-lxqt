@@ -1,3 +1,7 @@
+libdbusmenu-lxqt-0.4.0 / 2026-04-20
+===================================
+ * Silenced warning.
+
 libdbusmenu-lxqt-0.3.0 / 2025-04-17
 ===================================
  * Workaround for a Qt crash on reloading menus.
