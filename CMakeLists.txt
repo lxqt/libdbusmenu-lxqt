@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(dbusmenu-lxqt)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 # Build options
 option(WITH_DOC "Build documentation (requires Doxygen)" OFF)
@@ -69,7 +68,6 @@ install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc
 
 add_subdirectory(src)
 add_subdirectory(tests)
-add_subdirectory(tools)
 
 if(WITH_DOC)
     configure_file(Doxyfile.in ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
