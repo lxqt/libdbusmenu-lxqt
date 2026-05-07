@@ -24,8 +24,6 @@ set_target_properties(dbusmenu-lxqt PROPERTIES
 )
 
 target_link_libraries(dbusmenu-lxqt
-    Qt::Gui
-    Qt::Core
     Qt::DBus
     Qt::Widgets
 )
