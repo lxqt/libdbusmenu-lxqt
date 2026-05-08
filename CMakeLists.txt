@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(dbusmenu-lxqt)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 # Build options
 option(WITH_DOC "Build documentation (requires Doxygen)" OFF)
@@ -65,22 +64,21 @@ configure_file(dbusmenu-lxqt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc @ONLY)
 
 install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc
         DESTINATION ${LIB_DESTINATION}/pkgconfig
-    )
+)
 
 add_subdirectory(src)
 add_subdirectory(tests)
-add_subdirectory(tools)
 
 if(WITH_DOC)
     configure_file(Doxyfile.in ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
 
     add_custom_target(doc ALL doxygen
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
+    )
 
     install(DIRECTORY ${CMAKE_BINARY_DIR}/html/
         DESTINATION share/doc/libdbusmenu-lxqt-doc
-        )
+    )
 endif(WITH_DOC)
 
 # Generate dbusmenu-lxqt-config* files
@@ -89,13 +87,13 @@ configure_package_config_file(
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config.cmake
     INSTALL_DESTINATION ${CMAKECONFIG_INSTALL_DIR}
     PATH_VARS INCLUDE_INSTALL_DIR
-    )
+)
 
 write_basic_package_version_file(
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config-version.cmake
     VERSION ${dbusmenu_lxqt_VERSION}
     COMPATIBILITY SameMajorVersion
-    )
+)
 
 # Install dbusmenu-lxqt-config* files
 install(FILES
@@ -103,4 +101,4 @@ install(FILES
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config-version.cmake
     DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
     COMPONENT Devel
-    )
+)
