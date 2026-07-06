@@ -21,11 +21,14 @@
 #include "dbusmenushortcut_p.h"
 
 // Qt
+#include <QLatin1StringView>
 #include <QtGui/QKeySequence>
 #include <QtDBus/QDBusArgument>
 
 // Local
 #include "debug_p.h"
+
+using namespace Qt::Literals::StringLiterals;
 
 static const int QT_COLUMN = 0;
 static const int DM_COLUMN = 1;
@@ -33,25 +36,25 @@ static const int DM_COLUMN = 1;
 static void processKeyTokens(QStringList* tokens, int srcCol, int dstCol)
 {
     struct Row {
-        const char* zero;
-        const char* one;
-        const char* operator[](int col) const { return col == 0 ? zero : one; }
+        const char16_t* zero;
+        const char16_t* one;
+        const char16_t* operator[](int col) const { return col == 0 ? zero : one; }
     };
     static const Row table[] =
-    { {"Meta", "Super"},
-      {"Ctrl", "Control"},
+    { {u"Meta", u"Super"},
+      {u"Ctrl", u"Control"},
       // Special cases for compatibility with libdbusmenu-glib which uses
       // "plus" for "+" and "minus" for "-".
       // cf https://bugs.launchpad.net/libdbusmenu-qt/+bug/712565
-      {"+", "plus"},
-      {"-", "minus"},
-      {0, 0}
+      {u"+", u"plus"},
+      {u"-", u"minus"},
+      {nullptr, nullptr}
     };
 
     const Row* ptr = table;
     for (; ptr->zero != 0; ++ptr) {
-        const char* from = (*ptr)[srcCol];
-        const char* to = (*ptr)[dstCol];
+        const QStringView from = (*ptr)[srcCol];
+        const QStringView to = (*ptr)[dstCol];
         tokens->replaceInStrings(from, to);
     }
 }
@@ -60,13 +63,13 @@ DBusMenuShortcut DBusMenuShortcut::fromKeySequence(const QKeySequence& sequence)
 {
     QString string = sequence.toString();
     DBusMenuShortcut shortcut;
-    const QStringList tokens = string.split(", ");
+    const QStringList tokens = string.split(", "_L1);
     for (QString token : tokens) {
         // Hack: Qt::CTRL | Qt::Key_Plus is turned into the string "Ctrl++",
         // but we don't want the call to token.split() to consider the
         // second '+' as a separator so we replace it with its final value.
-        token.replace("++", "+plus");
-        QStringList keyTokens = token.split('+');
+        token.replace("++"_L1, "+plus"_L1);
+        QStringList keyTokens = token.split(u'+');
         processKeyTokens(&keyTokens, QT_COLUMN, DM_COLUMN);
         shortcut << keyTokens;
     }
@@ -79,9 +82,9 @@ QKeySequence DBusMenuShortcut::toKeySequence() const
     for (const QStringList& keyTokens_ : std::as_const(*this)) {
         QStringList keyTokens = keyTokens_;
         processKeyTokens(&keyTokens, DM_COLUMN, QT_COLUMN);
-        tmp << keyTokens.join(QLatin1String("+"));
+        tmp << keyTokens.join("+"_L1);
     }
-    QString string = tmp.join(QLatin1String(", "));
+    QString string = tmp.join(", "_L1);
     return QKeySequence::fromString(string);
 }
 

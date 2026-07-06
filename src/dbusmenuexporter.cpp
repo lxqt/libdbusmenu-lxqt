@@ -23,6 +23,7 @@
 // Qt
 #include <QBuffer>
 #include <QDateTime>
+#include <QLatin1StringView>
 #include <QMap>
 #include <QMenu>
 #include <QSet>
@@ -40,7 +41,9 @@
 #include "debug_p.h"
 #include "utils_p.h"
 
-static const char *KMENU_TITLE = "kmenu_title";
+using namespace Qt::Literals::StringLiterals;
+
+static constexpr QLatin1StringView KMENU_TITLE = "kmenu_title"_L1;
 
 //-------------------------------------------------
 //
@@ -85,8 +88,8 @@ QVariantMap DBusMenuExporterPrivate::propertiesForKMenuTitleAction(QAction *acti
 {
     QVariantMap map;
     // In case the other side does not know about x-kde-title, show a disabled item
-    map.insert("enabled", false);
-    map.insert("x-kde-title", true);
+    map.insert("enabled"_L1, false);
+    map.insert("x-kde-title"_L1, true);
 
     const QWidgetAction *widgetAction = qobject_cast<const QWidgetAction *>(action_);
     DMRETURN_VALUE_IF_FAIL(widgetAction, map);
@@ -95,10 +98,10 @@ QVariantMap DBusMenuExporterPrivate::propertiesForKMenuTitleAction(QAction *acti
     QAction *action = button->defaultAction();
     DMRETURN_VALUE_IF_FAIL(action, map);
 
-    map.insert("label", swapMnemonicChar(action->text(), '&', '_'));
+    map.insert("label"_L1, swapMnemonicChar(action->text(), u'&', u'_'));
     insertIconProperty(&map, action);
     if (!action->isVisible()) {
-        map.insert("visible", false);
+        map.insert("visible"_L1, false);
     }
     return map;
 }
@@ -106,9 +109,9 @@ QVariantMap DBusMenuExporterPrivate::propertiesForKMenuTitleAction(QAction *acti
 QVariantMap DBusMenuExporterPrivate::propertiesForSeparatorAction(QAction *action) const
 {
     QVariantMap map;
-    map.insert("type", "separator");
+    map.insert("type"_L1, "separator"_L1);
     if (!action->isVisible()) {
-        map.insert("visible", false);
+        map.insert("visible"_L1, false);
     }
     return map;
 }
@@ -116,26 +119,26 @@ QVariantMap DBusMenuExporterPrivate::propertiesForSeparatorAction(QAction *actio
 QVariantMap DBusMenuExporterPrivate::propertiesForStandardAction(QAction *action) const
 {
     QVariantMap map;
-    map.insert("label", swapMnemonicChar(action->text(), '&', '_'));
+    map.insert("label"_L1, swapMnemonicChar(action->text(), u'&', u'_'));
     if (!action->isEnabled()) {
-        map.insert("enabled", false);
+        map.insert("enabled"_L1, false);
     }
     if (!action->isVisible()) {
-        map.insert("visible", false);
+        map.insert("visible"_L1, false);
     }
     if (action->menu()) {
-        map.insert("children-display", "submenu");
+        map.insert("children-display"_L1, "submenu"_L1);
     }
     if (action->isCheckable()) {
         bool exclusive = action->actionGroup() && action->actionGroup()->isExclusive();
-        map.insert("toggle-type", exclusive ? "radio" : "checkmark");
-        map.insert("toggle-state", action->isChecked() ? 1 : 0);
+        map.insert("toggle-type"_L1, exclusive ? "radio"_L1 : "checkmark"_L1);
+        map.insert("toggle-state"_L1, action->isChecked() ? 1 : 0);
     }
     insertIconProperty(&map, action);
     QKeySequence keySequence = action->shortcut();
     if (!keySequence.isEmpty()) {
         DBusMenuShortcut shortcut = DBusMenuShortcut::fromKeySequence(keySequence);
-        map.insert("shortcut", QVariant::fromValue(shortcut));
+        map.insert("shortcut"_L1, QVariant::fromValue(shortcut));
     }
     return map;
 }
@@ -238,7 +241,7 @@ void DBusMenuExporterPrivate::insertIconProperty(QVariantMap *map, QAction *acti
     // provide the icon name for per-theme lookups
     const QString iconName = q->iconNameForAction(action);
     if (!iconName.isEmpty()) {
-        map->insert("icon-name", iconName);
+        map->insert("icon-name"_L1, iconName);
     }
 
     // provide the serialized icon data in case the icon
@@ -247,7 +250,7 @@ void DBusMenuExporterPrivate::insertIconProperty(QVariantMap *map, QAction *acti
     if (!icon.isNull()) {
         QBuffer buffer;
         icon.pixmap(16).save(&buffer, "PNG");
-        map->insert("icon-data", buffer.data());
+        map->insert("icon-data"_L1, buffer.data());
     }
 }
 
