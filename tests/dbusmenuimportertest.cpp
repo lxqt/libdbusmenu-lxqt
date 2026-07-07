@@ -26,6 +26,7 @@
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QIcon>
+#include <QLatin1StringView>
 #include <QMenu>
 #include <QtTest>
 
@@ -37,10 +38,12 @@
 // Local
 #include "testutils.h"
 
+using namespace Qt::Literals::StringLiterals;
+
 QTEST_MAIN(DBusMenuImporterTest)
 
-static const char *TEST_SERVICE = "com.canonical.dbusmenu-lxqt-test";
-static const char *TEST_OBJECT_PATH = "/TestMenuBar";
+static constexpr QLatin1StringView TEST_SERVICE = "com.canonical.dbusmenu-lxqt-test"_L1;
+static constexpr QLatin1StringView TEST_OBJECT_PATH = "/TestMenuBar"_L1;
 
 Q_DECLARE_METATYPE(QAction*)
 
@@ -58,7 +61,7 @@ void DBusMenuImporterTest::cleanup()
 void DBusMenuImporterTest::testStandardItem()
 {
     QMenu inputMenu;
-    inputMenu.addAction("Test");
+    inputMenu.addAction("Test"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -67,13 +70,13 @@ void DBusMenuImporterTest::testStandardItem()
     QMenu *outputMenu = importer.menu();
     QCOMPARE(outputMenu->actions().count(), 1);
     QAction *outputAction = outputMenu->actions().first();
-    QCOMPARE(outputAction->text(), QString("Test"));
+    QCOMPARE(outputAction->text(), "Test"_L1);
 }
 
 void DBusMenuImporterTest::testAddingNewItem()
 {
     QMenu inputMenu;
-    inputMenu.addAction("Test");
+    inputMenu.addAction("Test"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -81,8 +84,8 @@ void DBusMenuImporterTest::testAddingNewItem()
     QMenu *outputMenu = importer.menu();
     QCOMPARE(outputMenu->actions().count(), inputMenu.actions().count());
 
-    inputMenu.addAction("Test2");
-    inputMenu.addAction("Test3");
+    inputMenu.addAction("Test2"_L1);
+    inputMenu.addAction("Test3"_L1);
     QTest::qWait(2000); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
     QCOMPARE(outputMenu->actions().count(), inputMenu.actions().count());
 }
@@ -90,7 +93,7 @@ void DBusMenuImporterTest::testAddingNewItem()
 void DBusMenuImporterTest::testShortcut()
 {
     QMenu inputMenu;
-    QAction *action = inputMenu.addAction("Test");
+    QAction *action = inputMenu.addAction("Test"_L1);
     action->setShortcut(Qt::CTRL | Qt::Key_S);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
@@ -106,7 +109,7 @@ void DBusMenuImporterTest::testDeletingImporterWhileWaitingForAboutToShow()
 {
     // Start test program and wait for it to be ready
     QProcess slowMenuProcess;
-    slowMenuProcess.start("./slowmenu");
+    slowMenuProcess.start("./slowmenu"_L1);
     QTest::qWait(500);
 
     // Create importer and wait for the menu
@@ -128,15 +131,15 @@ void DBusMenuImporterTest::testDeletingImporterWhileWaitingForAboutToShow()
 void DBusMenuImporterTest::testDynamicMenu()
 {
     QMenu rootMenu;
-    QAction* a1 = new QAction("a1", &rootMenu);
-    QAction* a2 = new QAction("a2", &rootMenu);
+    QAction* a1 = new QAction("a1"_L1, &rootMenu);
+    QAction* a2 = new QAction("a2"_L1, &rootMenu);
     MenuFiller rootMenuFiller(&rootMenu);
     rootMenuFiller.addAction(a1);
     rootMenuFiller.addAction(a2);
 
     QMenu subMenu;
     MenuFiller subMenuFiller(&subMenu);
-    subMenuFiller.addAction(new QAction("a3", &subMenu));
+    subMenuFiller.addAction(new QAction("a3"_L1, &subMenu));
 
     a1->setMenu(&subMenu);
 
@@ -183,8 +186,8 @@ void DBusMenuImporterTest::testActionActivationRequested()
 {
     // Export a menu
     QMenu inputMenu;
-    QAction *inputA1 = inputMenu.addAction("a1");
-    QAction *inputA2 = inputMenu.addAction("a2");
+    QAction *inputA1 = inputMenu.addAction("a1"_L1);
+    QAction *inputA2 = inputMenu.addAction("a2"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     // Import the menu
@@ -214,9 +217,9 @@ void DBusMenuImporterTest::testActionsAreDeletedWhenImporterIs()
 {
     // Export a menu
     QMenu inputMenu;
-    inputMenu.addAction("a1");
-    QMenu *inputSubMenu = inputMenu.addMenu("subMenu");
-    inputSubMenu->addAction("a2");
+    inputMenu.addAction("a1"_L1);
+    QMenu *inputSubMenu = inputMenu.addMenu("subMenu"_L1);
+    inputSubMenu->addAction("a2"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     // Import the menu
@@ -267,7 +270,7 @@ void DBusMenuImporterTest::testIconData()
 
     // Export a menu
     QMenu inputMenu;
-    QAction *a1 = inputMenu.addAction("a1");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
     a1->setIcon(inputIcon);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
@@ -283,7 +286,7 @@ void DBusMenuImporterTest::testIconData()
     QVERIFY(!outputIcon.isNull());
 
     QImage result = outputIcon.pixmap(16).toImage();
-    QByteArray origBytes, resultBytes;
+    QString origBytes, resultBytes;
     img.save(origBytes);
     result.save(resultBytes);
     QCOMPARE(origBytes,resultBytes);
@@ -292,7 +295,7 @@ void DBusMenuImporterTest::testIconData()
 void DBusMenuImporterTest::testInvisibleItem()
 {
     QMenu inputMenu;
-    QAction *action = inputMenu.addAction("Test");
+    QAction *action = inputMenu.addAction("Test"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -318,7 +321,7 @@ void DBusMenuImporterTest::testInvisibleItem()
 void DBusMenuImporterTest::testDisabledItem()
 {
     QMenu inputMenu;
-    QAction *action = inputMenu.addAction("Test");
+    QAction *action = inputMenu.addAction("Test"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
