@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(dbusmenu-lxqt)
 
-# Build options
-option(WITH_DOC "Build documentation (requires Doxygen)" OFF)
-
 # Versions
 ## Package version
 set(dbusmenu_lxqt_VERSION_MAJOR 0)
@@ -25,10 +22,6 @@ set(dbusmenu_lxqt_lib_API_VERSION 4)
 set(dbusmenu_lxqt_lib_PATCH_VERSION 0)
 
 set(dbusmenu_lxqt_lib_VERSION ${dbusmenu_lxqt_lib_SOVERSION}.${dbusmenu_lxqt_lib_API_VERSION}.${dbusmenu_lxqt_lib_PATCH_VERSION})
-
-if(WITH_DOC)
-    find_package(Doxygen REQUIRED)
-endif()
 
 find_package(lxqt2-build-tools ${LXQTBT_MINIMUM_VERSION} REQUIRED)
 find_package(Qt6 ${QT_MINIMUM_VERSION} REQUIRED COMPONENTS Core Widgets DBus)
@@ -53,18 +46,6 @@ install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc
 
 add_subdirectory(src)
 add_subdirectory(tests)
-
-if(WITH_DOC)
-    configure_file(Doxyfile.in ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
-
-    add_custom_target(doc ALL doxygen
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-
-    install(DIRECTORY ${CMAKE_BINARY_DIR}/html/
-        DESTINATION share/doc/libdbusmenu-lxqt-doc
-    )
-endif(WITH_DOC)
 
 # Generate dbusmenu-lxqt-config* files
 configure_package_config_file(

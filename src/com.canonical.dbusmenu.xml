@@ -29,15 +29,15 @@ License version 3 and version 2.1 along with this program.  If not, see
 <http://www.gnu.org/licenses/>
 -->
 <node name="/" xmlns:dox="http://www.canonical.com/dbus/dox.dtd">
-    <dox:d><![CDATA[
+    <!-- <![CDATA[
     @mainpage
 
     The goal of DBusMenu is to expose menus on DBus.
-    
+
     Main interface is documented here: @ref com::canonical::dbusmenu
-    ]]></dox:d>
+    ]]> -->
 	<interface name="com.canonical.dbusmenu">
-		<dox:d><![CDATA[
+		<!-- <![CDATA[
 		A DBus interface to expose menus on DBus.
 
 		Menu items are represented with a unique numeric id and a dictionary of
@@ -161,31 +161,31 @@ License version 3 and version 2.1 along with this program.  If not, see
 
 		Vendor specific properties can be added by prefixing them with
 		"x-<vendor>-".
-		]]></dox:d>
+		]]> -->
 
 <!-- Properties -->
 		<property name="Version" type="u" access="read">
-			<dox:d>
+			<!--
 			Provides the version of the DBusmenu API that this API is
 			implementing.
-			</dox:d>
+			 -->
 		</property>
 
         <property name="Status" type="s" access="read">
-            <dox:d>
+            <!--
             Tells if the menus are in a normal state or they believe that they
             could use some attention.  Cases for showing them would be if help
             were referring to them or they accessors were being highlighted.
             This property can have two values: "normal" in almost all cases and
             "notice" when they should have a higher priority to be shown.
-            </dox:d>
+             -->
         </property>
 
 <!-- Functions -->
 
 		<method name="GetLayout">
 			<annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="DBusMenuLayoutItem"/>
-			<dox:d>
+			<!--
 			  Provides the layout and propertiers that are attached to the entries
 			  that are in the layout.  It only gives the items that are children
 			  of the item that is specified in @a parentId.  It will return all of the
@@ -194,85 +194,85 @@ License version 3 and version 2.1 along with this program.  If not, see
 			  The format is recursive, where the second 'v' is in the same format
 			  as the original 'a(ia{sv}av)'.  Its content depends on the value
 			  of @a recursionDepth.
-			</dox:d>
+			 -->
 			<arg type="i" name="parentId" direction="in">
-				<dox:d>The ID of the parent node for the layout.  For
-				grabbing the layout from the root node use zero.</dox:d>
+				<!-- The ID of the parent node for the layout.  For
+				grabbing the layout from the root node use zero. -->
 			</arg>
 			<arg type="i" name="recursionDepth" direction="in">
-				<dox:d>
+				<!--
 				  The amount of levels of recursion to use.  This affects the
 				  content of the second variant array.
 				  - -1: deliver all the items under the @a parentId.
 				  - 0: no recursion, the array will be empty.
 				  - n: array will contains items up to 'n' level depth.
-				</dox:d>
+				 -->
 			</arg>
 			<arg type="as" name="propertyNames" direction="in" >
-				<dox:d>
+				<!--
 					The list of item properties we are
 					interested in.  If there are no entries in the list all of
 					the properties will be sent.
-				</dox:d>
+				 -->
 			</arg>
 			<arg type="u" name="revision" direction="out">
-				<dox:d>The revision number of the layout.  For matching
-				with layoutUpdated signals.</dox:d>
+				<!-- The revision number of the layout.  For matching
+				with layoutUpdated signals. -->
 			</arg>
 			<arg type="(ia{sv}av)" name="layout" direction="out">
-				<dox:d>The layout, as a recursive structure.</dox:d>
+				<!-- The layout, as a recursive structure. -->
 			</arg>
 		</method>
 
 		<method name="GetGroupProperties">
 			<annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QList&lt;int&gt;"/>
 			<annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="DBusMenuItemList"/>
-			<dox:d>
+			<!--
 			Returns the list of items which are children of @a parentId.
-			</dox:d>
+			 -->
 			<arg type="ai" name="ids" direction="in" >
-				<dox:d>
+				<!--
 					A list of ids that we should be finding the properties
 					on.  If the list is empty, all menu items should be sent.
-				</dox:d>
+				 -->
 			</arg>
 			<arg type="as" name="propertyNames" direction="in" >
-				<dox:d>
+				<!-- clipsys
 					The list of item properties we are
 					interested in.  If there are no entries in the list all of
 					the properties will be sent.
-				</dox:d>
+				 -->
 			</arg>
 			<arg type="a(ia{sv})" name="properties" direction="out" >
-				<dox:d>
+				<!--
 					An array of property values.
 					An item in this area is represented as a struct following
 					this format:
 					@li id unsigned the item id
 					@li properties map(string => variant) the requested item properties
-				</dox:d>
+				 -->
 			</arg>
 		</method>
 
 		<method name="GetProperty">
-			<dox:d>
+			<!--
 			  Get a signal property on a single item.  This is not useful if you're
 			  going to implement this interface, it should only be used if you're
 			  debugging via a commandline tool.
-			</dox:d>
+			 -->
 			<arg type="i" name="id" direction="in">
-				<dox:d>the id of the item which received the event</dox:d>
+				<!-- the id of the item which received the event -->
 			</arg>
 			<arg type="s" name="name" direction="in">
-				<dox:d>the name of the property to get</dox:d>
+				<!-- the name of the property to get -->
 			</arg>
 			<arg type="v" name="value" direction="out">
-				<dox:d>the value of the property</dox:d>
+				<!-- the value of the property -->
 			</arg>
 		</method>
 
 		<method name="Event">
-			<dox:d><![CDATA[
+			<!-- <![CDATA[
 			This is called by the applet to notify the application an event happened on a
 			menu item.
 
@@ -282,35 +282,35 @@ License version 3 and version 2.1 along with this program.  If not, see
 			@li "hovered"
 
 			Vendor specific events can be added by prefixing them with "x-<vendor>-"
-			]]></dox:d>
+			]]> -->
 			<arg type="i" name="id" direction="in" >
-				<dox:d>the id of the item which received the event</dox:d>
+				<!-- the id of the item which received the event -->
 			</arg>
 			<arg type="s" name="eventId" direction="in" >
-				<dox:d>the type of event</dox:d>
+				<!-- the type of event -->
 			</arg>
 			<arg type="v" name="data" direction="in" >
-				<dox:d>event-specific data</dox:d>
+				<!-- event-specific data -->
 			</arg>
 			<arg type="u" name="timestamp" direction="in" >
-				<dox:d>The time that the event occured if available or the time the message was sent if not</dox:d>
+				<!-- The time that the event occured if available or the time the message was sent if not -->
 			</arg>
 		</method>
 
 		<method name="AboutToShow">
-			<dox:d>
+			<!--
 			This is called by the applet to notify the application that it is about
 			to show the menu under the specified item.
-			</dox:d>
+			 -->
 			<arg type="i" name="id" direction="in">
-				<dox:d>
+				<!--
 				Which menu item represents the parent of the item about to be shown.
-				</dox:d>
+				 -->
 			</arg>
 			<arg type="b" name="needUpdate" direction="out">
-				<dox:d>
+				<!--
 				Whether this AboutToShow event should result in the menu being updated.
-				</dox:d>
+				 -->
 			</arg>
 		</method>
 
@@ -318,44 +318,44 @@ License version 3 and version 2.1 along with this program.  If not, see
 		<signal name="ItemsPropertiesUpdated">
 			<annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="DBusMenuItemList"/>
 			<annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="DBusMenuItemKeysList"/>
-			<dox:d>
+			<!--
 			Triggered when there are lots of property updates across many items
 			so they all get grouped into a single dbus message.  The format is
 			the ID of the item with a hashtable of names and values for those
 			properties.
-			</dox:d>
+			 -->
 			<arg type="a(ia{sv})" name="updatedProps" direction="out" />
 			<arg type="a(ias)" name="removedProps" direction="out" />
 		</signal>
 
 		<signal name="LayoutUpdated">
-			<dox:d>
+			<!--
 			Triggered by the application to notify display of a layout update, up to
 			revision
-			</dox:d>
+			 -->
 			<arg type="u" name="revision" direction="out" >
-				<dox:d>The revision of the layout that we're currently on</dox:d>
+				<!-- The revision of the layout that we're currently on -->
 			</arg>
 			<arg type="i" name="parent" direction="out" >
-				<dox:d>
+				<!--
 				If the layout update is only of a subtree, this is the
 				parent item for the entries that have changed.  It is zero if
 				the whole layout should be considered invalid.
-				</dox:d>
+				 -->
 			</arg>
 		</signal>
 		<signal name="ItemActivationRequested">
-			<dox:d>
+			<!--
 			  The server is requesting that all clients displaying this
 			  menu open it to the user.  This would be for things like
 			  hotkeys that when the user presses them the menu should
 			  open and display itself to the user.
-			</dox:d>
+			 -->
 			<arg type="i" name="id" direction="out" >
-				<dox:d>ID of the menu that should be activated</dox:d>
+				<!-- ID of the menu that should be activated -->
 			</arg>
 			<arg type="u" name="timestamp" direction="out" >
-				<dox:d>The time that the event occured</dox:d>
+				<!-- The time that the event occured -->
 			</arg>
 		</signal>
 
