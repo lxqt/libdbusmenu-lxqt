@@ -25,6 +25,9 @@
 #include <QtDBus>
 #include <QtGui>
 #include <QApplication>
+#include <QLatin1StringView>
+
+using namespace Qt::Literals::StringLiterals;
 
 static const char *TEST_SERVICE = "org.kde.dbusmenu-lxqt-test";
 static const char *TEST_OBJECT_PATH = "/TestMenuBar";
@@ -49,10 +52,10 @@ void SlowMenu::slotAboutToShow()
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
-    QDBusConnection::sessionBus().registerService(TEST_SERVICE);
+    QDBusConnection::sessionBus().registerService(QLatin1StringView(TEST_SERVICE));
     SlowMenu* inputMenu = new SlowMenu;
-    inputMenu->addAction("Test");
-    DBusMenuExporter exporter(TEST_OBJECT_PATH, inputMenu);
+    inputMenu->addAction("Test"_L1);
+    DBusMenuExporter exporter(QLatin1StringView(TEST_OBJECT_PATH), inputMenu);
     qDebug() << "Looping";
     return app.exec();
 }

@@ -11,6 +11,9 @@ set(dbusmenu_lxqt_VERSION_MINOR 4)
 set(dbusmenu_lxqt_VERSION_PATCH 0)
 set(dbusmenu_lxqt_VERSION ${dbusmenu_lxqt_VERSION_MAJOR}.${dbusmenu_lxqt_VERSION_MINOR}.${dbusmenu_lxqt_VERSION_PATCH})
 
+set(LXQTBT_MINIMUM_VERSION "2.4.0")
+set(QT_MINIMUM_VERSION "6.6.0")
+
 ## Lib version
 ### Bump this one when a binary-incompatible change is introduced
 set(dbusmenu_lxqt_lib_SOVERSION 0)
@@ -27,35 +30,17 @@ if(WITH_DOC)
     find_package(Doxygen REQUIRED)
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
+find_package(lxqt2-build-tools ${LXQTBT_MINIMUM_VERSION} REQUIRED)
+find_package(Qt6 ${QT_MINIMUM_VERSION} REQUIRED COMPONENTS Core Widgets DBus)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-
-# Default to hidden visibility for symbols
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
-
+include (LXQtCompilerSettings NO_POLICY_SCOPE)
 include (CheckCXXCompilerFlag)
-# Check some compiler flags
-check_cxx_compiler_flag(-Woverloaded-virtual __DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-if (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
-endif (__DBUSMENU_HAVE_W_OVERLOADED_VIRTUAL)
-
-check_cxx_compiler_flag(-Wall __DBUSMENU_HAVE_W_ALL)
-if (__DBUSMENU_HAVE_W_ALL)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-endif (__DBUSMENU_HAVE_W_ALL)
-
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
+
 set(LIB_DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 set(CMAKECONFIG_INSTALL_DIR "${LIB_DESTINATION}/cmake/dbusmenu-lxqt")
 set(INCLUDE_INSTALL_DIR "include/dbusmenu-lxqt")

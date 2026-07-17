@@ -28,6 +28,7 @@
 #include <QIcon>
 #include <QMenu>
 #include <QtTest>
+#include <QLatin1StringView>
 
 // DBusMenuLXQt
 #include <dbusmenuexporter.h>
@@ -38,16 +39,18 @@
 // Local
 #include "testutils.h"
 
+using namespace Qt::Literals::StringLiterals;
+
 QTEST_MAIN(DBusMenuExporterTest)
 
-static const char *TEST_SERVICE = "org.kde.dbusmenu-qt-test";
-static const char *TEST_OBJECT_PATH = "/TestMenuBar";
+static constexpr QLatin1StringView TEST_SERVICE = "org.kde.dbusmenu-qt-test"_L1;
+static constexpr QLatin1StringView TEST_OBJECT_PATH = "/TestMenuBar"_L1;
 
 Q_DECLARE_METATYPE(QList<int>)
 
 static DBusMenuLayoutItemList getChildren(QDBusAbstractInterface* iface, int parentId, const QStringList &propertyNames)
 {
-    QDBusPendingReply<uint, DBusMenuLayoutItem> reply = iface->call("GetLayout", parentId, /*recursionDepth=*/ 1, propertyNames);
+    QDBusPendingReply<uint, DBusMenuLayoutItem> reply = iface->call("GetLayout"_L1, parentId, /*recursionDepth=*/ 1, propertyNames);
     reply.waitForFinished();
     if (!reply.isValid()) {
         qFatal("%s", qPrintable(reply.error().message()));
@@ -60,13 +63,13 @@ static DBusMenuLayoutItemList getChildren(QDBusAbstractInterface* iface, int par
 
 void DBusMenuExporterTest::init()
 {
-    QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
+    QVERIFY(QDBusConnection::sessionBus().registerService(QLatin1StringView(TEST_SERVICE)));
     QCoreApplication::setAttribute(Qt::AA_DontShowIconsInMenus, false);
 }
 
 void DBusMenuExporterTest::cleanup()
 {
-    QVERIFY(QDBusConnection::sessionBus().unregisterService(TEST_SERVICE));
+    QVERIFY(QDBusConnection::sessionBus().unregisterService(QLatin1StringView(TEST_SERVICE)));
 }
 
 void DBusMenuExporterTest::testGetSomeProperties_data()
@@ -104,22 +107,22 @@ void DBusMenuExporterTest::testGetSomeProperties()
     QVERIFY2(iface.isValid(), qPrintable(iface.lastError().message()));
 
     // Get exported menu info
-    QStringList propertyNames = QStringList() << "type" << "enabled" << "label" << "icon-name";
+    QStringList propertyNames = QStringList() << "type"_L1 << "enabled"_L1 << "label"_L1 << "icon-name"_L1;
     DBusMenuLayoutItemList list = getChildren(&iface, /*parentId=*/0, propertyNames);
     DBusMenuLayoutItem item = list.first();
     QVERIFY(item.id != 0);
     QVERIFY(item.children.isEmpty());
-    QVERIFY(!item.properties.contains("type"));
-    QCOMPARE(item.properties.value("label").toString(), label);
+    QVERIFY(!item.properties.contains("type"_L1));
+    QCOMPARE(item.properties.value("label"_L1).toString(), label);
     if (enabled) {
-        QVERIFY(!item.properties.contains("enabled"));
+        QVERIFY(!item.properties.contains("enabled"_L1));
     } else {
-        QCOMPARE(item.properties.value("enabled").toBool(), false);
+        QCOMPARE(item.properties.value("enabled"_L1).toBool(), false);
     }
     if (iconName.isEmpty()) {
-        QVERIFY(!item.properties.contains("icon-name"));
+        QVERIFY(!item.properties.contains("icon-name"_L1));
     } else {
-        QCOMPARE(item.properties.value("icon-name").toString(), iconName);
+        QCOMPARE(item.properties.value("icon-name"_L1).toString(), iconName);
     }
 }
 
@@ -128,31 +131,31 @@ void DBusMenuExporterTest::testGetAllProperties()
     // set of properties which must be returned because their values are not
     // the default values
     const QSet<QString> a1Properties = QSet<QString>()
-        << "label"
+        << "label"_L1
         ;
 
     const QSet<QString> separatorProperties = QSet<QString>()
-        << "type";
+        << "type"_L1;
 
     const QSet<QString> a2Properties = QSet<QString>()
-        << "label"
-        << "enabled"
-        << "icon-name"
-        << "icon-data" // Icon data is always provided if the icon is valid.
-        << "visible"
+        << "label"_L1
+        << "enabled"_L1
+        << "icon-name"_L1
+        << "icon-data"_L1 // Icon data is always provided if the icon is valid.
+        << "visible"_L1
         ;
 
     // Create the menu items
     QMenu inputMenu;
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
-    inputMenu.addAction("a1");
+    inputMenu.addAction("a1"_L1);
 
     inputMenu.addSeparator();
 
-    QAction *a2 = new QAction("a2", &inputMenu);
+    QAction *a2 = new QAction("a2"_L1, &inputMenu);
     a2->setEnabled(false);
-    QIcon icon = QIcon::fromTheme("CMakeSetup");
+    QIcon icon = QIcon::fromTheme("CMakeSetup"_L1);
     QVERIFY(!icon.isNull());
     a2->setIcon(icon);
     a2->setVisible(false);
@@ -182,10 +185,10 @@ void DBusMenuExporterTest::testGetAllProperties()
 
 void DBusMenuExporterTest::testGetNonExistentProperty()
 {
-    const char* NON_EXISTENT_KEY = "i-do-not-exist";
+    constexpr QLatin1StringView NON_EXISTENT_KEY = "i-do-not-exist"_L1;
 
     QMenu inputMenu;
-    inputMenu.addAction("a1");
+    inputMenu.addAction("a1"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -199,7 +202,7 @@ void DBusMenuExporterTest::testGetNonExistentProperty()
 void DBusMenuExporterTest::testClickedEvent()
 {
     QMenu inputMenu;
-    QAction *action = inputMenu.addAction("a1");
+    QAction *action = inputMenu.addAction("a1"_L1);
     QSignalSpy spy(action, SIGNAL(triggered()));
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
@@ -210,7 +213,7 @@ void DBusMenuExporterTest::testClickedEvent()
 
     QVariant empty = QVariant::fromValue(QDBusVariant(QString()));
     uint timestamp = QDateTime::currentDateTime().toSecsSinceEpoch();
-    iface.call("Event", id, "clicked", empty, timestamp);
+    iface.call("Event"_L1, id, "clicked"_L1, empty, timestamp);
     QTest::qWait(500);
 
     QCOMPARE(spy.count(), 1);
@@ -219,9 +222,9 @@ void DBusMenuExporterTest::testClickedEvent()
 void DBusMenuExporterTest::testSubMenu()
 {
     QMenu inputMenu;
-    QMenu *subMenu = inputMenu.addMenu("menu");
-    QAction *a1 = subMenu->addAction("a1");
-    QAction *a2 = subMenu->addAction("a2");
+    QMenu *subMenu = inputMenu.addMenu("menu"_L1);
+    QAction *a1 = subMenu->addAction("a1"_L1);
+    QAction *a2 = subMenu->addAction("a2"_L1);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -234,10 +237,10 @@ void DBusMenuExporterTest::testSubMenu()
 
     DBusMenuLayoutItem item = list.takeFirst();
     QVERIFY(item.id != 0);
-    QCOMPARE(item.properties.value("label").toString(), a1->text());
+    QCOMPARE(item.properties.value("label"_L1).toString(), a1->text());
 
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("label").toString(), a2->text());
+    QCOMPARE(item.properties.value("label"_L1).toString(), a2->text());
 }
 
 void DBusMenuExporterTest::testDynamicSubMenu()
@@ -246,17 +249,17 @@ void DBusMenuExporterTest::testDynamicSubMenu()
     // too often because it causes refreshes
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
     ManualSignalSpy layoutUpdatedSpy;
-    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "com.canonical.dbusmenu", "LayoutUpdated", "ui", &layoutUpdatedSpy, SLOT(receiveCall(uint, int)));
+    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "com.canonical.dbusmenu"_L1, "LayoutUpdated"_L1, "ui"_L1, &layoutUpdatedSpy, SLOT(receiveCall(uint, int)));
 
     // Create our test menu
     QMenu inputMenu;
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
-    QAction *action = inputMenu.addAction("menu");
+    QAction *action = inputMenu.addAction("menu"_L1);
     QMenu *subMenu = new QMenu(&inputMenu);
     action->setMenu(subMenu);
     MenuFiller filler(subMenu);
-    filler.addAction(new QAction("a1", subMenu));
-    filler.addAction(new QAction("a2", subMenu));
+    filler.addAction(new QAction("a1"_L1, subMenu));
+    filler.addAction(new QAction("a2"_L1, subMenu));
 
     // Get id of submenu
     DBusMenuLayoutItemList list = getChildren(&iface, 0, QStringList());
@@ -272,7 +275,7 @@ void DBusMenuExporterTest::testDynamicSubMenu()
     QCOMPARE(layoutUpdatedSpy.takeFirst().at(1).toInt(), 0);
 
     // Pretend we show the menu
-    QDBusReply<bool> aboutToShowReply = iface.call("AboutToShow", id);
+    QDBusReply<bool> aboutToShowReply = iface.call("AboutToShow"_L1, id);
     QVERIFY2(aboutToShowReply.isValid(), qPrintable(aboutToShowReply.error().message()));
     QVERIFY(aboutToShowReply.value());
     QTest::qWait(500);
@@ -289,7 +292,7 @@ void DBusMenuExporterTest::testDynamicSubMenu()
         QVERIFY(item.id != 0);
         QAction *action = subMenu->actions().at(pos);
         QVERIFY(action);
-        QCOMPARE(item.properties.value("label").toString(), action->text());
+        QCOMPARE(item.properties.value("label"_L1).toString(), action->text());
     }
 }
 
@@ -302,9 +305,9 @@ void DBusMenuExporterTest::testRadioItems()
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     // Create 2 radio items, check first one
-    QAction *a1 = inputMenu.addAction("a1");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
     a1->setCheckable(true);
-    QAction *a2 = inputMenu.addAction("a1");
+    QAction *a2 = inputMenu.addAction("a1"_L1);
     a2->setCheckable(true);
 
     QActionGroup group(0);
@@ -321,21 +324,21 @@ void DBusMenuExporterTest::testRadioItems()
 
     // Check items are radios and correctly toggled
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("toggle-type").toString(), QString("radio"));
-    QCOMPARE(item.properties.value("toggle-state").toInt(), 1);
+    QCOMPARE(item.properties.value("toggle-type"_L1).toString(), "radio"_L1);
+    QCOMPARE(item.properties.value("toggle-state"_L1).toInt(), 1);
     int a1Id = item.id;
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("toggle-type").toString(), QString("radio"));
-    QCOMPARE(item.properties.value("toggle-state").toInt(), 0);
+    QCOMPARE(item.properties.value("toggle-type"_L1).toString(), "radio"_L1);
+    QCOMPARE(item.properties.value("toggle-state"_L1).toInt(), 0);
     int a2Id = item.id;
 
     // Click a2
     ManualSignalSpy spy;
-    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "com.canonical.dbusmenu", "ItemsPropertiesUpdated", "a(ia{sv})a(ias)",
+    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "com.canonical.dbusmenu"_L1, "ItemsPropertiesUpdated"_L1, "a(ia{sv})a(ias)"_L1,
         &spy, SLOT(receiveCall(DBusMenuItemList, DBusMenuItemKeysList)));
     QVariant empty = QVariant::fromValue(QDBusVariant(QString()));
     uint timestamp = QDateTime::currentDateTime().toSecsSinceEpoch();
-    iface.call("Event", a2Id, "clicked", empty, timestamp);
+    iface.call("Event"_L1, a2Id, "clicked"_L1, empty, timestamp);
     QTest::qWait(500);
 
     // Check a1 is not checked, but a2 is
@@ -343,10 +346,10 @@ void DBusMenuExporterTest::testRadioItems()
     QCOMPARE(list.count(), 2);
 
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("toggle-state").toInt(), 0);
+    QCOMPARE(item.properties.value("toggle-state"_L1).toInt(), 0);
 
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("toggle-state").toInt(), 1);
+    QCOMPARE(item.properties.value("toggle-state"_L1).toInt(), 1);
 
     // Did we get notified?
     QCOMPARE(spy.count(), 1);
@@ -373,9 +376,9 @@ void DBusMenuExporterTest::testNonExclusiveActionGroup()
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     // Create 2 checkable items
-    QAction *a1 = inputMenu.addAction("a1");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
     a1->setCheckable(true);
-    QAction *a2 = inputMenu.addAction("a1");
+    QAction *a2 = inputMenu.addAction("a1"_L1);
     a2->setCheckable(true);
 
     // Put them into a non exclusive group
@@ -391,10 +394,10 @@ void DBusMenuExporterTest::testNonExclusiveActionGroup()
 
     // Check items are checkmark, not radio
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("toggle-type").toString(), QString("checkmark"));
+    QCOMPARE(item.properties.value("toggle-type"_L1).toString(), "checkmark"_L1);
     //int a1Id = item.id;
     item = list.takeFirst();
-    QCOMPARE(item.properties.value("toggle-type").toString(), QString("checkmark"));
+    QCOMPARE(item.properties.value("toggle-type"_L1).toString(), "checkmark"_L1);
     //int a2Id = item.id;
 }
 
@@ -404,7 +407,7 @@ void DBusMenuExporterTest::testClickDeletedAction()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
-    QAction *a1 = inputMenu.addAction("a1");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
 
     // Get id
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -418,7 +421,7 @@ void DBusMenuExporterTest::testClickDeletedAction()
     // Send a click to deleted a1
     QVariant empty = QVariant::fromValue(QDBusVariant(QString()));
     uint timestamp = QDateTime::currentDateTime().toSecsSinceEpoch();
-    iface.call("Event", id, "clicked", empty, timestamp);
+    iface.call("Event"_L1, id, "clicked"_L1, empty, timestamp);
     QTest::qWait(500);
 }
 
@@ -430,7 +433,7 @@ void DBusMenuExporterTest::testDeleteExporterBeforeMenu()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
 
-    QAction *a1 = inputMenu.addAction("a1");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
     delete exporter;
     inputMenu.removeAction(a1);
 }
@@ -439,8 +442,8 @@ void DBusMenuExporterTest::testUpdateAndDeleteSubMenu()
 {
     // Create a menu with a submenu
     QMenu inputMenu;
-    QMenu *subMenu = inputMenu.addMenu("menu");
-    QAction *a1 = subMenu->addAction("a1");
+    QMenu *subMenu = inputMenu.addMenu("menu"_L1);
+    QAction *a1 = subMenu->addAction("a1"_L1);
 
     // Export it
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
@@ -449,7 +452,7 @@ void DBusMenuExporterTest::testUpdateAndDeleteSubMenu()
     // Update a1 (which is in subMenu) and delete subMenu right after that. If
     // DBusMenuExporter is not careful it will crash in the qWait() because it
     // tries to send itemUpdated() for a1.
-    a1->setText("Not a menu anymore");
+    a1->setText("Not a menu anymore"_L1);
     delete subMenu;
     QTest::qWait(500);
 }
@@ -461,14 +464,14 @@ void DBusMenuExporterTest::testMenuShortcut()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu); Q_UNUSED(exporter)
 
-    QAction *a1 = inputMenu.addAction("a1");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
     a1->setShortcut(Qt::CTRL | Qt::Key_A);
 
-    QAction *a2 = inputMenu.addAction("a2");
+    QAction *a2 = inputMenu.addAction("a2"_L1);
     a2->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_A, Qt::ALT | Qt::Key_B));
 
     // No shortcut, to test the property is not added in this case
-    QAction *a3 = inputMenu.addAction("a3");
+    QAction *a3 = inputMenu.addAction("a3"_L1);
 
     QList<QAction*> actionList;
     actionList << a1 << a2 << a3;
@@ -478,17 +481,17 @@ void DBusMenuExporterTest::testMenuShortcut()
     QVERIFY2(iface.isValid(), qPrintable(iface.lastError().message()));
 
     // Get exported menu info
-    QStringList propertyNames = QStringList() << "label" << "shortcut";
+    QStringList propertyNames = QStringList() << "label"_L1 << "shortcut"_L1;
     DBusMenuLayoutItemList list = getChildren(&iface, 0, propertyNames);
     QCOMPARE(list.count(), actionList.count());
 
     for (const QAction* action : std::as_const(actionList)) {
         DBusMenuLayoutItem item = list.takeFirst();
         if (action->shortcut().isEmpty()) {
-            QVERIFY(!item.properties.contains("shortcut"));
+            QVERIFY(!item.properties.contains("shortcut"_L1));
         } else {
-            QVERIFY(item.properties.contains("shortcut"));
-            QDBusArgument arg = item.properties.value("shortcut").value<QDBusArgument>();
+            QVERIFY(item.properties.contains("shortcut"_L1));
+            QDBusArgument arg = item.properties.value("shortcut"_L1).value<QDBusArgument>();
             DBusMenuShortcut shortcut;
             arg >> shortcut;
             QCOMPARE(shortcut.toKeySequence(), action->shortcut());
@@ -503,8 +506,8 @@ void DBusMenuExporterTest::testGetGroupProperties()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu); Q_UNUSED(exporter)
 
-    inputMenu.addAction("a1");
-    inputMenu.addAction("a2");
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("a2"_L1);
 
     // Check exporter is on DBus
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
@@ -521,7 +524,7 @@ void DBusMenuExporterTest::testGetGroupProperties()
 
     // Get group properties
     QList<int> ids = QList<int>() << id1 << id2;
-    QDBusReply<DBusMenuItemList> reply = iface.call("GetGroupProperties", QVariant::fromValue(ids), QStringList());
+    QDBusReply<DBusMenuItemList> reply = iface.call("GetGroupProperties"_L1, QVariant::fromValue(ids), QStringList());
     QVERIFY2(reply.isValid(), qPrintable(reply.error().message()));
     DBusMenuItemList groupPropertiesList = reply.value();
 
@@ -530,7 +533,7 @@ void DBusMenuExporterTest::testGetGroupProperties()
 
     for (const QAction* action : iActions) {
         DBusMenuItem item = groupPropertiesList.takeFirst();
-        QCOMPARE(item.properties.value("label").toString(), action->text());
+        QCOMPARE(item.properties.value("label"_L1).toString(), action->text());
     }
 }
 
@@ -541,15 +544,15 @@ void DBusMenuExporterTest::testActivateAction()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
 
-    QAction *a1 = inputMenu.addAction("a1");
-    QAction *a2 = inputMenu.addAction("a2");
+    QAction *a1 = inputMenu.addAction("a1"_L1);
+    QAction *a2 = inputMenu.addAction("a2"_L1);
 
     // Check exporter is on DBus
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
     QVERIFY2(iface.isValid(), qPrintable(iface.lastError().message()));
 
     ManualSignalSpy spy;
-    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "com.canonical.dbusmenu", "ItemActivationRequested", "iu", &spy, SLOT(receiveCall(int, uint)));
+    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "com.canonical.dbusmenu"_L1, "ItemActivationRequested"_L1, "iu"_L1, &spy, SLOT(receiveCall(int, uint)));
 
     // Get item ids
     DBusMenuLayoutItemList list = getChildren(&iface, 0, QStringList());
@@ -591,8 +594,8 @@ void DBusMenuExporterTest::testTrackActionsOnlyOnce()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &mainMenu); Q_UNUSED(exporter)
 
-    QMenu* subMenu = new QMenu("File");
-    subMenu->addAction("a1");
+    QMenu* subMenu = new QMenu("File"_L1);
+    subMenu->addAction("a1"_L1);
     mainMenu.addAction(subMenu->menuAction());
 
     QTest::qWait(500);
@@ -613,8 +616,8 @@ void DBusMenuExporterTest::testHonorDontShowIconsInMenusAttribute()
     QMenu inputMenu;
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
-    QAction *action = new QAction("Undo", &inputMenu);
-    QIcon icon = QIcon::fromTheme("CMakeSetup");
+    QAction *action = new QAction("Undo"_L1, &inputMenu);
+    QIcon icon = QIcon::fromTheme("CMakeSetup"_L1);
     QVERIFY(!icon.isNull());
     action->setIcon(icon);
     inputMenu.addAction(action);
@@ -624,11 +627,11 @@ void DBusMenuExporterTest::testHonorDontShowIconsInMenusAttribute()
     QVERIFY2(iface.isValid(), qPrintable(iface.lastError().message()));
 
     // Get exported menu info
-    QStringList propertyNames = QStringList() << "icon-name";
+    QStringList propertyNames = QStringList() << "icon-name"_L1;
     DBusMenuLayoutItemList list = getChildren(&iface, /*parentId=*/0, propertyNames);
     DBusMenuLayoutItem item = list.first();
     QVERIFY(item.id != 0);
-    QVERIFY(!item.properties.contains("icon-name"));
+    QVERIFY(!item.properties.contains("icon-name"_L1));
 }
 
 static bool hasInternalDBusMenuObject(QMenu* menu)
@@ -650,7 +653,7 @@ void DBusMenuExporterTest::testDBusMenuObjectIsDeletedWhenExporterIsDeleted()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
 
-    inputMenu.addAction("a1");
+    inputMenu.addAction("a1"_L1);
     QVERIFY2(hasInternalDBusMenuObject(&inputMenu), "Test setup failed");
     delete exporter;
     QVERIFY(!hasInternalDBusMenuObject(&inputMenu));
@@ -686,11 +689,11 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
         // Pretend there was an action so that doEmitLayoutUpdated() is called
         // even if the new menu is empty. If we don't do this we don't test
         // DBusMenuExporterPrivate::collapseSeparators() for empty menus.
-        delete inputMenu.addAction("dummy");
+        delete inputMenu.addAction("dummy"_L1);
     }
 
     for (QChar ch : std::as_const(input)) {
-        if (ch == '-') {
+        if (ch == u'-') {
             inputMenu.addSeparator();
         } else {
             inputMenu.addAction(ch);
@@ -711,14 +714,14 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
     QString output;
     for (const DBusMenuLayoutItem& item : list) {
         QVariantMap properties = item.properties;
-        if (properties.contains("visible") && !properties.value("visible").toBool()) {
+        if (properties.contains("visible"_L1) && !properties.value("visible"_L1).toBool()) {
             continue;
         }
-        QString type = properties.value("type").toString();
-        if (type == "separator") {
-            output += '-';
+        QString type = properties.value("type"_L1).toString();
+        if (type == "separator"_L1) {
+            output += u'-';
         } else {
-            output += properties.value("label").toString();
+            output += properties.value("label"_L1).toString();
         }
     }
 
@@ -728,7 +731,7 @@ void DBusMenuExporterTest::testSeparatorCollapsing()
 
 static void checkPropertiesChangedArgs(const QVariantList& args, const QString& name, const QVariant& value)
 {
-    QCOMPARE(args[0].toString(), QString("com.canonical.dbusmenu"));
+    QCOMPARE(args[0].toString(), "com.canonical.dbusmenu"_L1);
     QVariantMap map;
     map.insert(name, value);
     QCOMPARE(args[1].toMap(), map);
@@ -741,7 +744,7 @@ void DBusMenuExporterTest::testSetStatus()
     QVERIFY(QDBusConnection::sessionBus().registerService(TEST_SERVICE));
     DBusMenuExporter *exporter = new DBusMenuExporter(TEST_OBJECT_PATH, &inputMenu);
     ManualSignalSpy spy;
-    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "org.freedesktop.DBus.Properties", "PropertiesChanged", "sa{sv}as", &spy, SLOT(receiveCall(QString, QVariantMap, QStringList)));
+    QDBusConnection::sessionBus().connect(TEST_SERVICE, TEST_OBJECT_PATH, "org.freedesktop.DBus.Properties"_L1, "PropertiesChanged"_L1, "sa{sv}as"_L1, &spy, SLOT(receiveCall(QString, QVariantMap, QStringList)));
 
     QTest::qWait(500);
 
@@ -749,25 +752,25 @@ void DBusMenuExporterTest::testSetStatus()
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);
     QVERIFY2(iface.isValid(), qPrintable(iface.lastError().message()));
 
-    QCOMPARE(exporter->status(), QString("normal"));
+    QCOMPARE(exporter->status(), "normal"_L1);
 
     // Change status, a DBus signal should be emitted
-    exporter->setStatus("notice");
-    QCOMPARE(exporter->status(), QString("notice"));
+    exporter->setStatus("notice"_L1);
+    QCOMPARE(exporter->status(), "notice"_L1);
     QTest::qWait(500);
     QCOMPARE(spy.count(), 1);
-    checkPropertiesChangedArgs(spy.takeFirst(), "Status", "notice");
+    checkPropertiesChangedArgs(spy.takeFirst(), "Status"_L1, "notice"_L1);
 
     // Same status => no signal
-    exporter->setStatus("notice");
+    exporter->setStatus("notice"_L1);
     QTest::qWait(500);
     QCOMPARE(spy.count(), 0);
 
     // Change status, a DBus signal should be emitted
-    exporter->setStatus("normal");
+    exporter->setStatus("normal"_L1);
     QTest::qWait(500);
     QCOMPARE(spy.count(), 1);
-    checkPropertiesChangedArgs(spy.takeFirst(), "Status", "normal");
+    checkPropertiesChangedArgs(spy.takeFirst(), "Status"_L1, "normal"_L1);
 }
 
 void DBusMenuExporterTest::testGetIconDataProperty()
@@ -789,7 +792,7 @@ void DBusMenuExporterTest::testGetIconDataProperty()
 
     // Create a menu with the icon and export it
     QMenu inputMenu;
-    QAction* a1 = inputMenu.addAction("a1");
+    QAction* a1 = inputMenu.addAction("a1"_L1);
     a1->setIcon(icon);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
@@ -800,18 +803,18 @@ void DBusMenuExporterTest::testGetIconDataProperty()
 
     QList<int> ids = QList<int>() << layoutItemlist[0].id;
 
-    QDBusReply<DBusMenuItemList> reply = iface.call("GetGroupProperties", QVariant::fromValue(ids), QStringList());
+    QDBusReply<DBusMenuItemList> reply = iface.call("GetGroupProperties"_L1, QVariant::fromValue(ids), QStringList());
 
     DBusMenuItemList itemlist = reply.value();
     QCOMPARE(itemlist.count(), 1);
 
     // Check we have the right property
     DBusMenuItem item = itemlist.takeFirst();
-    QVERIFY(!item.properties.contains("icon-name"));
-    QVERIFY(item.properties.contains("icon-data"));
+    QVERIFY(!item.properties.contains("icon-name"_L1));
+    QVERIFY(item.properties.contains("icon-data"_L1));
 
     // Check saved image is the same
-    QByteArray data = item.properties.value("icon-data").toByteArray();
+    QByteArray data = item.properties.value("icon-data"_L1).toByteArray();
     QVERIFY(!data.isEmpty());
     QImage result;
     QVERIFY(result.loadFromData(data, "PNG"));
