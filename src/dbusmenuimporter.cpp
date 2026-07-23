@@ -128,8 +128,7 @@ public:
         QDBusPendingCall call = m_interface->asyncCall("GetLayout"_L1, id, 1, QStringList());
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, q);
         watcher->setProperty(DBUSMENU_PROPERTY_ID, id);
-        QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-            q, SLOT(slotGetLayoutFinished(QDBusPendingCallWatcher*)));
+        QObject::connect(watcher, &QDBusPendingCallWatcher::finished, q, &DBusMenuImporter::slotGetLayoutFinished);
 
         return watcher;
     }
@@ -137,10 +136,8 @@ public:
     QMenu *createMenu(QWidget *parent)
     {
         QMenu *menu = q->createMenu(parent);
-        QObject::connect(menu, SIGNAL(aboutToShow()),
-            q, SLOT(slotMenuAboutToShow()));
-        QObject::connect(menu, SIGNAL(aboutToHide()),
-            q, SLOT(slotMenuAboutToHide()));
+        QObject::connect(menu, &QMenu::aboutToShow, q, &DBusMenuImporter::slotMenuAboutToShow);
+        QObject::connect(menu, &QMenu::aboutToHide, q, &DBusMenuImporter::slotMenuAboutToHide);
         return menu;
     }
 
@@ -318,8 +315,8 @@ public:
             QTimer timer;
             timer.setSingleShot(true);
             QEventLoop loop;
-            loop.connect(&timer, SIGNAL(timeout()), SLOT(quit()));
-            loop.connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)), SLOT(quit()));
+            loop.connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+            loop.connect(watcher, &QDBusPendingCallWatcher::finished, &loop, &QEventLoop::quit);
             timer.start(maxWait);
             loop.exec();
             timer.stop();
@@ -367,7 +364,7 @@ DBusMenuImporter::DBusMenuImporter(const QString &service, const QString &path, 
 
     d->m_type = type;
 
-    connect(&d->m_mapper, SIGNAL(mappedInt(int)), SLOT(sendClickedEvent(int)));
+    connect(&d->m_mapper, &QSignalMapper::mappedInt, this, &DBusMenuImporter::sendClickedEvent);
 
     d->m_pendingLayoutUpdateTimer = new QTimer(this);
     d->m_pendingLayoutUpdateTimer->setSingleShot(true);
@@ -383,7 +380,7 @@ DBusMenuImporter::DBusMenuImporter(const QString &service, const QString &path, 
      * events during updates, especially the timer events.
      */
     d->m_pendingLayoutUpdateTimer->setInterval(LAYOUT_UPDATE_TIMEOUT);
-    connect(d->m_pendingLayoutUpdateTimer, SIGNAL(timeout()), SLOT(processPendingLayoutUpdates()));
+    connect(d->m_pendingLayoutUpdateTimer, &QTimer::timeout, this, &DBusMenuImporter::processPendingLayoutUpdates);
 
     // For some reason, using QObject::connect() does not work but
     // QDBusConnect::connect() does
@@ -523,8 +520,7 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
         }
         menu->addAction(action);
 
-        connect(action, SIGNAL(triggered()),
-            &d->m_mapper, SLOT(map()));
+        connect(action, &QAction::triggered, &d->m_mapper, qOverload<>(&QSignalMapper::map));
         d->m_mapper.setMapping(action, dbusMenuItem.id);
 
         if (index == activeIndex) {
@@ -600,8 +596,7 @@ void DBusMenuImporter::slotMenuAboutToShow()
     QDBusPendingCall call = d->m_interface->asyncCall("AboutToShow"_L1, id);
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
     watcher->setProperty(DBUSMENU_PROPERTY_ID, id);
-    connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-        SLOT(slotAboutToShowDBusCallFinished(QDBusPendingCallWatcher*)));
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, &DBusMenuImporter::slotAboutToShowDBusCallFinished);
 
     QPointer<QObject> guard(this);
 

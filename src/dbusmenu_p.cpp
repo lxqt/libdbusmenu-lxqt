@@ -36,7 +36,7 @@ DBusMenu::DBusMenu(QMenu *menu, DBusMenuExporter *exporter, int parentId)
 , m_parentId(parentId)
 {
     menu->installEventFilter(this);
-    connect(m_exporter, SIGNAL(destroyed(QObject*)), SLOT(deleteMe()));
+    connect(m_exporter, &DBusMenuExporter::destroyed, this, &DBusMenu::deleteMe);
 }
 
 DBusMenu::~DBusMenu()

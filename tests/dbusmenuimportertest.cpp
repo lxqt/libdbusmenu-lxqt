@@ -117,7 +117,7 @@ void DBusMenuImporterTest::testDeletingImporterWhileWaitingForAboutToShow()
     QTest::qWait(500);
 
     QMenu *outputMenu = importer->menu();
-    QTimer::singleShot(100, importer, SLOT(deleteLater()));
+    QTimer::singleShot(100, importer, &DBusMenuImporter::deleteLater);
     outputMenu->popup(QPoint(0, 0));
 
     // If it crashes, it will crash while waiting there
@@ -154,8 +154,8 @@ void DBusMenuImporterTest::testDynamicMenu()
     QCOMPARE(outputMenu->actions().count(), 0);
 
     // Update menu, a1 and a2 should get added
-    QSignalSpy spy(&importer, SIGNAL(menuUpdated()));
-    QSignalSpy spyOld(&importer, SIGNAL(menuReadyToBeShown()));
+    QSignalSpy spy(&importer, &DBusMenuImporter::menuUpdated);
+    QSignalSpy spyOld(&importer, &DBusMenuImporter::menuReadyToBeShown);
     importer.updateMenu();
     while (spy.isEmpty()) {
         QTest::qWait(500);
@@ -192,7 +192,7 @@ void DBusMenuImporterTest::testActionActivationRequested()
 
     // Import the menu
     DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
-    QSignalSpy spy(&importer, SIGNAL(actionActivationRequested(QAction*)));
+    QSignalSpy spy(&importer, &DBusMenuImporter::actionActivationRequested);
 
     QTest::qWait(500);
     QMenu *outputMenu = importer.menu();
