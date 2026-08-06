@@ -29,8 +29,8 @@ find_package(Qt6 ${QT_MINIMUM_VERSION} REQUIRED COMPONENTS Core Widgets DBus)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-include (LXQtCompilerSettings NO_POLICY_SCOPE)
-include (CheckCXXCompilerFlag)
+include(LXQtCompilerSettings NO_POLICY_SCOPE)
+include(CheckCXXCompilerFlag)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
