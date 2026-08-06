@@ -34,14 +34,12 @@ include (CheckCXXCompilerFlag)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-set(LIB_DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-set(CMAKECONFIG_INSTALL_DIR "${LIB_DESTINATION}/cmake/dbusmenu-lxqt")
-set(INCLUDE_INSTALL_DIR "include/dbusmenu-lxqt")
+set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_INCLUDEDIR}/dbusmenu-lxqt")
 
 configure_file(dbusmenu-lxqt.pc.in ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc @ONLY)
 
 install(FILES ${CMAKE_BINARY_DIR}/dbusmenu-lxqt.pc
-        DESTINATION ${LIB_DESTINATION}/pkgconfig
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 add_subdirectory(src)
@@ -51,7 +49,7 @@ add_subdirectory(tests)
 configure_package_config_file(
     dbusmenu-lxqt-config.cmake.in
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config.cmake
-    INSTALL_DESTINATION ${CMAKECONFIG_INSTALL_DIR}
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dbusmenu-lxqt
     PATH_VARS INCLUDE_INSTALL_DIR
 )
 
@@ -65,6 +63,6 @@ write_basic_package_version_file(
 install(FILES
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config.cmake
     ${CMAKE_BINARY_DIR}/dbusmenu-lxqt-config-version.cmake
-    DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/dbusmenu-lxqt"
     COMPONENT Devel
 )
