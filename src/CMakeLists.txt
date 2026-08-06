@@ -30,23 +30,23 @@ target_link_libraries(dbusmenu-lxqt
 
 # Make sure linking to the target adds dbusmenu-lxqt install directory
 target_include_directories(dbusmenu-lxqt
-    INTERFACE "$<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}>")
+    INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/dbusmenu-lxqt>")
 
 install(TARGETS dbusmenu-lxqt
     EXPORT dbusmenu-lxqt-targets
-    LIBRARY DESTINATION ${LIB_DESTINATION}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION bin
 )
 
 install(EXPORT dbusmenu-lxqt-targets
-    DESTINATION ${CMAKECONFIG_INSTALL_DIR})
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dbusmenu-lxqt)
 
 install(DIRECTORY .
-    DESTINATION ${INCLUDE_INSTALL_DIR}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dbusmenu-lxqt
     FILES_MATCHING PATTERN "*.h"
     PATTERN "*_p.h" EXCLUDE
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dbusmenu_version.h
-    DESTINATION ${INCLUDE_INSTALL_DIR}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dbusmenu-lxqt
 )
