@@ -8,15 +8,15 @@ set(dbusmenu_lxqt_VERSION_MINOR 4)
 set(dbusmenu_lxqt_VERSION_PATCH 0)
 set(dbusmenu_lxqt_VERSION ${dbusmenu_lxqt_VERSION_MAJOR}.${dbusmenu_lxqt_VERSION_MINOR}.${dbusmenu_lxqt_VERSION_PATCH})
 
-set(LXQTBT_MINIMUM_VERSION "2.4.0")
-set(QT_MINIMUM_VERSION "6.6.0")
+set(LXQTBT_MINIMUM_VERSION "2.5.0")
+set(QT_MINIMUM_VERSION "6.10.0")
 
 ## Lib version
 ### Bump this one when a binary-incompatible change is introduced
 set(dbusmenu_lxqt_lib_SOVERSION 0)
 
 ### Bump this one when the API is extended in a binary-compatible way
-set(dbusmenu_lxqt_lib_API_VERSION 4)
+set(dbusmenu_lxqt_lib_API_VERSION 5)
 
 ### Bump this one when changes do not extend the API
 set(dbusmenu_lxqt_lib_PATCH_VERSION 0)
