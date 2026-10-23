@@ -4,7 +4,7 @@ project(dbusmenu-lxqt)
 # Versions
 ## Package version
 set(dbusmenu_lxqt_VERSION_MAJOR 0)
-set(dbusmenu_lxqt_VERSION_MINOR 4)
+set(dbusmenu_lxqt_VERSION_MINOR 5)
 set(dbusmenu_lxqt_VERSION_PATCH 0)
 set(dbusmenu_lxqt_VERSION ${dbusmenu_lxqt_VERSION_MAJOR}.${dbusmenu_lxqt_VERSION_MINOR}.${dbusmenu_lxqt_VERSION_PATCH})
 
