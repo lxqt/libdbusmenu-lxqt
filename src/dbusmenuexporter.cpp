@@ -195,7 +195,7 @@ void DBusMenuExporterPrivate::addAction(QAction *action, int parentId)
     }
     QVariantMap map = propertiesForAction(action);
     id = m_nextId++;
-    QObject::connect(action, SIGNAL(destroyed(QObject*)), q, SLOT(slotActionDestroyed(QObject*)));
+    QObject::connect(action, &QAction::destroyed, q, &DBusMenuExporter::slotActionDestroyed);
     m_actionForId.insert(id, action);
     m_idForAction.insert(action, id);
     m_actionProperties.insert(action, map);
@@ -222,7 +222,7 @@ void DBusMenuExporterPrivate::removeActionInternal(QObject *object)
 void DBusMenuExporterPrivate::removeAction(QAction *action, int parentId)
 {
     removeActionInternal(action);
-    QObject::disconnect(action, SIGNAL(destroyed(QObject*)), q, SLOT(slotActionDestroyed(QObject*)));
+    QObject::disconnect(action, &QAction::destroyed, q, &DBusMenuExporter::slotActionDestroyed);
     ++m_revision;
     emitLayoutUpdated(parentId);
 }
@@ -349,11 +349,11 @@ DBusMenuExporter::DBusMenuExporter(const QString &objectPath, QMenu *menu, const
 
     d->m_itemUpdatedTimer->setInterval(0);
     d->m_itemUpdatedTimer->setSingleShot(true);
-    connect(d->m_itemUpdatedTimer, SIGNAL(timeout()), SLOT(doUpdateActions()));
+    connect(d->m_itemUpdatedTimer, &QTimer::timeout, this, &DBusMenuExporter::doUpdateActions);
 
     d->m_layoutUpdatedTimer->setInterval(0);
     d->m_layoutUpdatedTimer->setSingleShot(true);
-    connect(d->m_layoutUpdatedTimer, SIGNAL(timeout()), SLOT(doEmitLayoutUpdated()));
+    connect(d->m_layoutUpdatedTimer, &QTimer::timeout, this, &DBusMenuExporter::doEmitLayoutUpdated);
 
     QDBusConnection connection(_connection);
     connection.registerObject(objectPath, d->m_dbusObject, QDBusConnection::ExportAllContents);

@@ -35,7 +35,7 @@ static const char *TEST_OBJECT_PATH = "/TestMenuBar";
 SlowMenu::SlowMenu()
 : QMenu()
 {
-    connect(this, SIGNAL(aboutToShow()), SLOT(slotAboutToShow()));
+    connect(this, &SlowMenu::aboutToShow, this, &SlowMenu::slotAboutToShow);
 }
 
 void SlowMenu::slotAboutToShow()

@@ -203,7 +203,7 @@ void DBusMenuExporterTest::testClickedEvent()
 {
     QMenu inputMenu;
     QAction *action = inputMenu.addAction("a1"_L1);
-    QSignalSpy spy(action, SIGNAL(triggered()));
+    QSignalSpy spy(action, &QAction::triggered);
     DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
 
     QDBusInterface iface(TEST_SERVICE, TEST_OBJECT_PATH);

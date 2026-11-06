@@ -83,7 +83,7 @@ public:
     MenuFiller(QMenu *menu)
     : m_menu(menu)
     {
-        connect(m_menu, SIGNAL(aboutToShow()), SLOT(fillMenu()));
+        connect(m_menu, &QMenu::aboutToShow, this, &MenuFiller::fillMenu);
     }
 
     void addAction(QAction *action)
