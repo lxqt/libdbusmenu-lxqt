@@ -48,6 +48,7 @@ private Q_SLOTS:
     void testSubmenuClickDuringPendingLayoutUpdate();
     void testClickDuringLayoutFetch();
     void testClickOnMovedDuplicateLabel();
+    void testRootUpdateWhileSubmenuOpens();
 
     void initTestCase();
 };

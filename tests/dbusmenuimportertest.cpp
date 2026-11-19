@@ -25,6 +25,7 @@
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusReply>
+#include <QGuiApplication>
 #include <QIcon>
 #include <QLatin1StringView>
 #include <QMenu>
@@ -525,4 +526,47 @@ void DBusMenuImporterTest::testClickOnMovedDuplicateLabel()
 
     QTRY_COMPARE_WITH_TIMEOUT(wirelessSpy.count(), 1, 1000);
     QCOMPARE(wiredSpy.count(), 0);
+}
+
+void DBusMenuImporterTest::testRootUpdateWhileSubmenuOpens()
+{
+    if (QGuiApplication::platformName() == "wayland"_L1) {
+        QSKIP("A submenu cannot be opened without real input on Wayland");
+    }
+    QMenu inputMenu;
+    QMenu inputSubMenu;
+    inputSubMenu.addAction("b1"_L1);
+    inputMenu.addAction("a1"_L1);
+    QAction *inputSubAction = inputMenu.addAction("Sub"_L1);
+    inputSubAction->setMenu(&inputSubMenu);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    outputMenu->popup(QPoint(0, 0));
+    QTRY_VERIFY(outputMenu->isVisible());
+    QTest::qWait(500);
+
+    // While the importer waits for the app inside "QMenu::popup()" of the
+    // submenu, the app rebuilds its root menu (like nm-applet after a Wi-Fi
+    // scan) with a new item above the submenu item, so a plain item is now at
+    // its place, and the new root layout arrives.
+    bool rebuilt = false;
+    QTimer::singleShot(0, this, [&] { // runs in the nested event loop
+        rebuilt = true;
+        inputMenu.insertAction(inputSubAction, new QAction("a2"_L1, &inputMenu));
+        QTest::qWait(100); // the layout update reaches the importer
+        QVERIFY(QMetaObject::invokeMethod(&importer, "processPendingLayoutUpdates", Qt::DirectConnection));
+        QTest::qWait(200); // the new root layout is received
+    });
+
+    // Open the submenu, the way hovering its item does.
+    outputMenu->setActiveAction(outputMenu->actions().at(1));
+    QVERIFY(rebuilt);
+
+    // It must not crash, and the root menu must be updated afterwards.
+    QTRY_COMPARE_WITH_TIMEOUT(outputMenu->actions().count(), 3, 5000);
+    outputMenu->hide();
 }
