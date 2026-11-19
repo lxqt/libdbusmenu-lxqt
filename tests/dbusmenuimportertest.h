@@ -43,6 +43,7 @@ private Q_SLOTS:
     void testIconData();
     void testInvisibleItem();
     void testDisabledItem();
+    void testVisibleMenuStaysOpenOnLayoutUpdate();
 
     void initTestCase();
 };

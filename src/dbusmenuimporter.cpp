@@ -510,10 +510,21 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     QAction *activeAction = nullptr;
     int index = 0;
 
-    menu->clear();
+    // WORKAROUND for a problem in Qt's menu code: do not call "menu->clear()"
+    // here. A visible menu that becomes empty is resized to an empty size. On
+    // X11, that hides its window, breaks the popup grab and Qt closes all
+    // popups; on Wayland, the menu blinks and a "Leave" event clears its active
+    // action. So, the new actions are added first and the old ones are removed
+    // afterwards.
+    QList<QPointer<QAction>> oldActions;
+    const auto currentActions = menu->actions();
+    for (QAction *act : currentActions) {
+        oldActions << act;
+    }
 
     for (const DBusMenuLayoutItem &dbusMenuItem : std::as_const(rootItem.children)) {
         QAction *action = d->createAction(dbusMenuItem.id, dbusMenuItem.properties, menu);
+        menu->addAction(action);
         DBusMenuImporterPrivate::ActionForId::Iterator it = d->m_actionForId.find(dbusMenuItem.id);
         if (it == d->m_actionForId.end()) {
             d->m_actionForId.insert(dbusMenuItem.id, action);
@@ -521,7 +532,6 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
             delete *it;
             *it = action;
         }
-        menu->addAction(action);
 
         connect(action, SIGNAL(triggered()),
             &d->m_mapper, SLOT(map()));
@@ -539,6 +549,17 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
 
         // NOTE: The new submenus will be refreshed in "slotMenuAboutToShow" on showing.
         // So, a recursive call "d->refresh(dbusMenuItem.id)" is not needed here.
+    }
+
+    // Remove the old actions like "QMenu::clear()" does.
+    for (const QPointer<QAction> &act : std::as_const(oldActions)) {
+        if (!act) { // already deleted above
+            continue;
+        }
+        menu->removeAction(act);
+        if (act->parent() == menu && act->associatedObjects().isEmpty()) {
+            delete act;
+        }
     }
 
     if (activeIndex > -1 && !activeAction) { // try to activate the last action

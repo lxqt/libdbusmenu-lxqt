@@ -47,6 +47,23 @@ static constexpr QLatin1StringView TEST_OBJECT_PATH = "/TestMenuBar"_L1;
 
 Q_DECLARE_METATYPE(QAction*)
 
+// Records whether a watched menu ever loses its last action.
+class EmptyMenuWatcher : public QObject
+{
+public:
+    bool becameEmpty = false;
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override
+    {
+        if (event->type() == QEvent::ActionRemoved
+            && static_cast<QWidget*>(obj)->actions().isEmpty()) {
+            becameEmpty = true;
+        }
+        return false;
+    }
+};
+
 void DBusMenuImporterTest::initTestCase()
 {
     qRegisterMetaType<QAction*>("QAction*");
@@ -344,3 +361,37 @@ void DBusMenuImporterTest::testDisabledItem()
     QVERIFY(outputAction->isEnabled());
 }
 
+
+void DBusMenuImporterTest::testVisibleMenuStaysOpenOnLayoutUpdate()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("a2"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    outputMenu->popup(QPoint(0, 0));
+    QTRY_VERIFY(outputMenu->isVisible());
+    EmptyMenuWatcher watcher;
+    outputMenu->installEventFilter(&watcher);
+
+    // Replace every item, like apps that rebuild their whole menu do
+    // (e.g. nm-applet after each Wi-Fi scan), so every id changes.
+    inputMenu.clear();
+    inputMenu.addAction("b1"_L1);
+    inputMenu.addAction("b2"_L1);
+    inputMenu.addAction("b3"_L1);
+    QTest::qWait(2500); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
+
+    QCOMPARE(outputMenu->actions().count(), 3);
+    QCOMPARE(outputMenu->actions().first()->text(), "b1"_L1);
+    // A visible menu must never become empty, not even for a moment: an empty
+    // menu may be resized to an empty size, which unmaps and closes it on X11.
+    QVERIFY(!watcher.becameEmpty);
+    outputMenu->removeEventFilter(&watcher);
+    outputMenu->hide();
+}
