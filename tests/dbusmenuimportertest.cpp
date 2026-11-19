@@ -395,3 +395,134 @@ void DBusMenuImporterTest::testVisibleMenuStaysOpenOnLayoutUpdate()
     outputMenu->removeEventFilter(&watcher);
     outputMenu->hide();
 }
+
+void DBusMenuImporterTest::testClickDuringPendingLayoutUpdate()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Edit"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QAction *staleOutputAction = outputMenu->actions().at(1);
+
+    // Rebuild the menu with the same labels, so every id changes
+    // (nm-applet does this after each Wi-Fi scan).
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    QAction *newEdit = inputMenu.addAction("Edit"_L1);
+    QSignalSpy triggeredSpy(newEdit, &QAction::triggered);
+
+    // Click before the importer fetches the new layout
+    // (see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter").
+    QTest::qWait(500);
+    QCOMPARE(outputMenu->actions().at(1), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(triggeredSpy.count(), 1, 1000);
+}
+
+void DBusMenuImporterTest::testSubmenuClickDuringPendingLayoutUpdate()
+{
+    QMenu inputMenu;
+    QMenu inputSubMenu;
+    inputSubMenu.addAction("b1"_L1);
+    inputSubMenu.addAction("Edit"_L1);
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("VPN"_L1)->setMenu(&inputSubMenu);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QMenu *outputSubMenu = outputMenu->actions().at(1)->menu();
+    QVERIFY(outputSubMenu);
+    QMetaObject::invokeMethod(outputSubMenu, "aboutToShow"); // fetch the submenu
+    QTRY_COMPARE(outputSubMenu->actions().count(), 2);
+    QAction *staleOutputAction = outputSubMenu->actions().at(1);
+
+    // Rebuild the whole menu with the same labels, so every id changes.
+    QMenu newInputSubMenu;
+    newInputSubMenu.addAction("b1"_L1);
+    QAction *newEdit = newInputSubMenu.addAction("Edit"_L1);
+    QSignalSpy triggeredSpy(newEdit, &QAction::triggered);
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("VPN"_L1)->setMenu(&newInputSubMenu);
+
+    // Click before the importer fetches the new layout.
+    QTest::qWait(500);
+    QCOMPARE(outputSubMenu->actions().at(1), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(triggeredSpy.count(), 1, 1500);
+}
+
+void DBusMenuImporterTest::testClickDuringLayoutFetch()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Edit"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QAction *staleOutputAction = outputMenu->actions().at(1);
+
+    // Rebuild the menu with the same labels, so every id changes.
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    QAction *newEdit = inputMenu.addAction("Edit"_L1);
+    QSignalSpy triggeredSpy(newEdit, &QAction::triggered);
+    QTest::qWait(500); // the layout update is now pending
+
+    // Start fetching the new layout and click before its reply is processed.
+    QVERIFY(QMetaObject::invokeMethod(&importer, "processPendingLayoutUpdates", Qt::DirectConnection));
+    QCOMPARE(outputMenu->actions().at(1), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(triggeredSpy.count(), 1, 1000);
+}
+
+void DBusMenuImporterTest::testClickOnMovedDuplicateLabel()
+{
+    // Two items with the same label, like nm-applet's "Disconnect" items of
+    // its wired and wireless sections.
+    QMenu inputMenu;
+    inputMenu.addAction("Wired"_L1);
+    inputMenu.addAction("Disconnect"_L1);
+    inputMenu.addAction("Wireless"_L1);
+    inputMenu.addAction("Disconnect"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 4);
+    QAction *staleOutputAction = outputMenu->actions().at(3);
+
+    // Rebuild the menu with a new item on top, so the items move and every id
+    // changes.
+    inputMenu.clear();
+    inputMenu.addAction("New network"_L1);
+    inputMenu.addAction("Wired"_L1);
+    QAction *newWiredDisconnect = inputMenu.addAction("Disconnect"_L1);
+    inputMenu.addAction("Wireless"_L1);
+    QAction *newWirelessDisconnect = inputMenu.addAction("Disconnect"_L1);
+    QSignalSpy wiredSpy(newWiredDisconnect, &QAction::triggered);
+    QSignalSpy wirelessSpy(newWirelessDisconnect, &QAction::triggered);
+
+    // Click the second "Disconnect" before the importer fetches the new layout.
+    QTest::qWait(500);
+    QCOMPARE(outputMenu->actions().at(3), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(wirelessSpy.count(), 1, 1000);
+    QCOMPARE(wiredSpy.count(), 0);
+}

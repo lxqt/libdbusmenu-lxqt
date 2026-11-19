@@ -60,6 +60,7 @@ static const int LAYOUT_UPDATE_TIMEOUT = 2000;
 static const char *DBUSMENU_PROPERTY_ID = "_dbusmenu_id";
 static const char *DBUSMENU_PROPERTY_ICON_NAME = "_dbusmenu_icon_name";
 static const char *DBUSMENU_PROPERTY_ICON_DATA_HASH = "_dbusmenu_icon_data_hash";
+static const char *DBUSMENU_PROPERTY_RESEND_CLICK = "_dbusmenu_resend_click";
 
 static QAction *createKdeTitle(QAction *action, QWidget *parent)
 {
@@ -115,6 +116,85 @@ public:
     bool m_mustEmitMenuUpdated;
 
     DBusMenuImporterType m_type;
+
+    // One level of the path of a clicked item: its index and label, and which
+    // of the items with the same label it is, out of how many.
+    struct ClickLevel {
+        int index;
+        QString text;
+        int occurrence;
+        int count;
+    };
+
+    static QList<QAction*> actionsWithText(const QList<QAction*> &acts, const QString &text)
+    {
+        QList<QAction*> result;
+        for (QAction *act : acts) {
+            if (act->text() == text) {
+                result << act;
+            }
+        }
+        return result;
+    }
+
+    static ClickLevel clickLevel(QMenu *menu, QAction *action)
+    {
+        const QList<QAction*> acts = menu->actions();
+        const QList<QAction*> sameText = actionsWithText(acts, action->text());
+        return {static_cast<int>(acts.indexOf(action)), action->text(),
+                static_cast<int>(sameText.indexOf(action)), static_cast<int>(sameText.size())};
+    }
+
+    // The item of "parent" that opens "subMenu", if any.
+    static QAction *actionForMenu(QMenu *parent, QMenu *subMenu)
+    {
+        const auto acts = parent->actions();
+        for (QAction *act : acts) {
+            if (act->menu() == subMenu) {
+                return act;
+            }
+        }
+        return nullptr;
+    }
+
+    // The path (from the root menu) of a clicked item whose id may be stale.
+    // It is resolved again, level by level, after fresh layouts are fetched,
+    // and the click is sent to the item found.
+    QList<ClickLevel> m_pendingClickPath;
+
+    // Called with the freshly loaded menu of the next level of the path.
+    void resolvePendingClick(QMenu *menu)
+    {
+        if (m_pendingClickPath.isEmpty()) {
+            return;
+        }
+        const ClickLevel level = m_pendingClickPath.takeFirst();
+        const QList<QAction*> acts = menu ? menu->actions() : QList<QAction*>();
+        QAction *target = nullptr;
+        if (level.index >= 0 && level.index < acts.size()
+            && acts.at(level.index)->text() == level.text) {
+            target = acts.at(level.index);
+        } else { // the item has moved: find it among the items with its label
+            const QList<QAction*> sameText = actionsWithText(acts, level.text);
+            // if an item with this label was added or removed, it is unknown
+            // which one is the clicked item
+            if (sameText.size() == level.count) {
+                target = sameText.at(level.occurrence);
+            }
+        }
+        if (!target || !target->isEnabled()
+            || (!m_pendingClickPath.isEmpty() && !target->menu())) {
+            DMWARNING << "Clicked item not found after a layout update:" << level.text;
+            m_pendingClickPath.clear();
+            return;
+        }
+        const int id = target->property(DBUSMENU_PROPERTY_ID).toInt();
+        if (m_pendingClickPath.isEmpty()) {
+            sendEvent(id, "clicked"_L1);
+        } else { // new submenus are empty until they are fetched
+            refresh(id)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
+        }
+    }
 
     QDBusPendingCallWatcher *refresh(int id)
     {
@@ -476,12 +556,16 @@ void DBusMenuImporter::slotItemActivationRequested(int id, uint /*timestamp*/)
 void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
 {
     int parentId = watcher->property(DBUSMENU_PROPERTY_ID).toInt();
+    const bool resendClick = watcher->property(DBUSMENU_PROPERTY_RESEND_CLICK).toBool();
     watcher->deleteLater();
 
     QDBusPendingReply<uint, DBusMenuLayoutItem> reply = *watcher;
     if (!reply.isValid()) {
         DMWARNING << reply.error().message();
         d->m_refreshing = false;
+        if (resendClick) {
+            d->resolvePendingClick(nullptr); // drop it
+        }
         return;
     }
 
@@ -494,6 +578,9 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     if (!menu) {
         DMWARNING << "No menu for id" << parentId;
         d->m_refreshing = false;
+        if (resendClick) {
+            d->resolvePendingClick(nullptr); // drop it
+        }
         return;
     }
 
@@ -581,6 +668,10 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
         m->blockEvents = false;
     }
 
+    if (resendClick) {
+        d->resolvePendingClick(menu);
+    }
+
     // The next update of pending layouts, if any.
     d->m_refreshing = false;
     if (d->m_pendingLayoutUpdateTimer) {
@@ -594,7 +685,39 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
 
 void DBusMenuImporter::sendClickedEvent(int id)
 {
-    d->sendEvent(id, "clicked"_L1);
+    // Some apps (e.g. nm-applet) renew all ids on each layout update. So, while
+    // an update is pending or being fetched, the clicked id may be stale. Then,
+    // fetch the layout now and resend the click to the item at the same place.
+    if (d->m_pendingLayoutUpdates.isEmpty() && !d->m_refreshing) {
+        d->sendEvent(id, "clicked"_L1);
+        return;
+    }
+
+    // Find the path of the item, from the root menu.
+    QList<DBusMenuImporterPrivate::ClickLevel> path;
+    bool reachedRoot = false;
+    QAction *action = d->m_actionForId.value(id);
+    while (action) {
+        QMenu *parentMenu = qobject_cast<QMenu*>(action->parent());
+        if (!parentMenu || !parentMenu->actions().contains(action)) {
+            break;
+        }
+        path.prepend(DBusMenuImporterPrivate::clickLevel(parentMenu, action));
+        if (parentMenu == menu()) {
+            reachedRoot = true;
+            break;
+        }
+        QMenu *grandParent = qobject_cast<QMenu*>(parentMenu->parent());
+        action = grandParent ? DBusMenuImporterPrivate::actionForMenu(grandParent, parentMenu) : nullptr;
+    }
+    if (!reachedRoot) {
+        d->sendEvent(id, "clicked"_L1);
+        return;
+    }
+
+    d->m_pendingLayoutUpdates.remove(0);
+    d->m_pendingClickPath = path;
+    d->refresh(0)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
 }
 
 void DBusMenuImporter::updateMenu()

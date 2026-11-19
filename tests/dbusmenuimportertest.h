@@ -44,6 +44,10 @@ private Q_SLOTS:
     void testInvisibleItem();
     void testDisabledItem();
     void testVisibleMenuStaysOpenOnLayoutUpdate();
+    void testClickDuringPendingLayoutUpdate();
+    void testSubmenuClickDuringPendingLayoutUpdate();
+    void testClickDuringLayoutFetch();
+    void testClickOnMovedDuplicateLabel();
 
     void initTestCase();
 };
