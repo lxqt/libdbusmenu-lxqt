@@ -528,6 +528,37 @@ void DBusMenuImporterTest::testClickOnMovedDuplicateLabel()
     QCOMPARE(wiredSpy.count(), 0);
 }
 
+void DBusMenuImporterTest::testTwoClicksDuringPendingLayoutUpdate()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("Info"_L1);
+    inputMenu.addAction("Edit"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QAction *staleInfo = outputMenu->actions().at(0);
+    QAction *staleEdit = outputMenu->actions().at(1);
+
+    // Rebuild the menu with the same labels, so every id changes.
+    inputMenu.clear();
+    QAction *newInfo = inputMenu.addAction("Info"_L1);
+    QAction *newEdit = inputMenu.addAction("Edit"_L1);
+    QSignalSpy infoSpy(newInfo, &QAction::triggered);
+    QSignalSpy editSpy(newEdit, &QAction::triggered);
+
+    // Click twice before the importer fetches the new layout: the second
+    // click comes while the first one is still being resolved.
+    QTest::qWait(500);
+    staleInfo->trigger();
+    staleEdit->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(infoSpy.count(), 1, 1500);
+    QTRY_COMPARE_WITH_TIMEOUT(editSpy.count(), 1, 1500);
+}
+
 void DBusMenuImporterTest::testRootUpdateWhileSubmenuOpens()
 {
     if (QGuiApplication::platformName() == "wayland"_L1) {

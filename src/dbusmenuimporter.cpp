@@ -184,6 +184,29 @@ public:
     // and the click is sent to the item found.
     QList<ClickLevel> m_pendingClickPath;
 
+    // The paths of the clicks made while another one is being resolved.
+    QList<QList<ClickLevel>> m_queuedClickPaths;
+
+    // Resolve "path" from a fresh root layout, or queue it after the click
+    // that is being resolved.
+    void resolveClick(const QList<ClickLevel> &path)
+    {
+        if (!m_pendingClickPath.isEmpty()) {
+            m_queuedClickPaths << path;
+            return;
+        }
+        m_pendingLayoutUpdates.remove(0);
+        m_pendingClickPath = path;
+        refresh(0)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
+    }
+
+    void resolveNextQueuedClick()
+    {
+        if (!m_queuedClickPaths.isEmpty()) {
+            resolveClick(m_queuedClickPaths.takeFirst());
+        }
+    }
+
     // Called with the freshly loaded menu of the next level of the path.
     void resolvePendingClick(QMenu *menu)
     {
@@ -208,11 +231,13 @@ public:
             || (!m_pendingClickPath.isEmpty() && !target->menu())) {
             DMWARNING << "Clicked item not found after a layout update:" << level.text;
             m_pendingClickPath.clear();
+            resolveNextQueuedClick();
             return;
         }
         const int id = target->property(DBUSMENU_PROPERTY_ID).toInt();
         if (m_pendingClickPath.isEmpty()) {
             sendEvent(id, "clicked"_L1);
+            resolveNextQueuedClick();
         } else { // new submenus are empty until they are fetched
             refresh(id)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
         }
@@ -756,9 +781,7 @@ void DBusMenuImporter::sendClickedEvent(int id)
         return;
     }
 
-    d->m_pendingLayoutUpdates.remove(0);
-    d->m_pendingClickPath = path;
-    d->refresh(0)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
+    d->resolveClick(path);
 }
 
 void DBusMenuImporter::updateMenu()
