@@ -60,6 +60,7 @@ static const int LAYOUT_UPDATE_TIMEOUT = 2000;
 static const char *DBUSMENU_PROPERTY_ID = "_dbusmenu_id";
 static const char *DBUSMENU_PROPERTY_ICON_NAME = "_dbusmenu_icon_name";
 static const char *DBUSMENU_PROPERTY_ICON_DATA_HASH = "_dbusmenu_icon_data_hash";
+static const char *DBUSMENU_PROPERTY_RESEND_CLICK = "_dbusmenu_resend_click";
 
 static QAction *createKdeTitle(QAction *action, QWidget *parent)
 {
@@ -116,6 +117,132 @@ public:
 
     DBusMenuImporterType m_type;
 
+    // One level of the path of a clicked item: its index and label, and which
+    // of the items with the same label it is, out of how many.
+    struct ClickLevel {
+        int index;
+        QString text;
+        int occurrence;
+        int count;
+    };
+
+    static QList<QAction*> actionsWithText(const QList<QAction*> &acts, const QString &text)
+    {
+        QList<QAction*> result;
+        for (QAction *act : acts) {
+            if (act->text() == text) {
+                result << act;
+            }
+        }
+        return result;
+    }
+
+    static ClickLevel clickLevel(QMenu *menu, QAction *action)
+    {
+        const QList<QAction*> acts = menu->actions();
+        const QList<QAction*> sameText = actionsWithText(acts, action->text());
+        return {static_cast<int>(acts.indexOf(action)), action->text(),
+                static_cast<int>(sameText.indexOf(action)), static_cast<int>(sameText.size())};
+    }
+
+    // The parent menus of the menus whose "aboutToShow()" is waiting for the
+    // app (see "slotMenuAboutToShow()"). They must not be reloaded meanwhile.
+    QList<QMenu*> m_lockedMenus;
+
+    // The ids of the menus whose next fetch must resolve the pending click.
+    QSet<int> m_resendClickIds;
+
+    // The menus above "menu", up to the root menu. A submenu is always created
+    // as a child of its parent menu (see "createAction()"), and its item may
+    // have already been replaced by a layout update.
+    QList<QMenu*> parentMenus(QMenu *menu) const
+    {
+        QList<QMenu*> result;
+        while (menu && menu != m_menu) {
+            menu = qobject_cast<QMenu*>(menu->parent());
+            if (menu) {
+                result << menu;
+            }
+        }
+        return result;
+    }
+
+    // The item of "parent" that opens "subMenu", if any.
+    static QAction *actionForMenu(QMenu *parent, QMenu *subMenu)
+    {
+        const auto acts = parent->actions();
+        for (QAction *act : acts) {
+            if (act->menu() == subMenu) {
+                return act;
+            }
+        }
+        return nullptr;
+    }
+
+    // The path (from the root menu) of a clicked item whose id may be stale.
+    // It is resolved again, level by level, after fresh layouts are fetched,
+    // and the click is sent to the item found.
+    QList<ClickLevel> m_pendingClickPath;
+
+    // The paths of the clicks made while another one is being resolved.
+    QList<QList<ClickLevel>> m_queuedClickPaths;
+
+    // Resolve "path" from a fresh root layout, or queue it after the click
+    // that is being resolved.
+    void resolveClick(const QList<ClickLevel> &path)
+    {
+        if (!m_pendingClickPath.isEmpty()) {
+            m_queuedClickPaths << path;
+            return;
+        }
+        m_pendingLayoutUpdates.remove(0);
+        m_pendingClickPath = path;
+        refresh(0)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
+    }
+
+    void resolveNextQueuedClick()
+    {
+        if (!m_queuedClickPaths.isEmpty()) {
+            resolveClick(m_queuedClickPaths.takeFirst());
+        }
+    }
+
+    // Called with the freshly loaded menu of the next level of the path.
+    void resolvePendingClick(QMenu *menu)
+    {
+        if (m_pendingClickPath.isEmpty()) {
+            return;
+        }
+        const ClickLevel level = m_pendingClickPath.takeFirst();
+        const QList<QAction*> acts = menu ? menu->actions() : QList<QAction*>();
+        QAction *target = nullptr;
+        if (level.index >= 0 && level.index < acts.size()
+            && acts.at(level.index)->text() == level.text) {
+            target = acts.at(level.index);
+        } else { // the item has moved: find it among the items with its label
+            const QList<QAction*> sameText = actionsWithText(acts, level.text);
+            // if an item with this label was added or removed, it is unknown
+            // which one is the clicked item
+            if (sameText.size() == level.count) {
+                target = sameText.at(level.occurrence);
+            }
+        }
+        if (!target || !target->isEnabled()
+            || (!m_pendingClickPath.isEmpty() && !target->menu())) {
+            DMWARNING << "Clicked item not found after a layout update:" << level.text;
+            m_pendingClickPath.clear();
+            resolveNextQueuedClick();
+            return;
+        }
+        const int id = target->property(DBUSMENU_PROPERTY_ID).toInt();
+        if (m_pendingClickPath.isEmpty()) {
+            sendEvent(id, "clicked"_L1);
+            resolveNextQueuedClick();
+        } else { // new submenus are empty until they are fetched
+            refresh(id)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
+        }
+    }
+
     QDBusPendingCallWatcher *refresh(int id)
     {
         #ifdef BENCHMARK
@@ -128,6 +255,9 @@ public:
         QDBusPendingCall call = m_interface->asyncCall("GetLayout"_L1, id, 1, QStringList());
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, q);
         watcher->setProperty(DBUSMENU_PROPERTY_ID, id);
+        if (m_resendClickIds.remove(id)) {
+            watcher->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
+        }
         QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
             q, SLOT(slotGetLayoutFinished(QDBusPendingCallWatcher*)));
 
@@ -321,7 +451,9 @@ public:
             loop.connect(&timer, SIGNAL(timeout()), SLOT(quit()));
             loop.connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)), SLOT(quit()));
             timer.start(maxWait);
-            loop.exec();
+            // This runs inside "QMenu::popup()": user input could hide the menu
+            // that is being opened. It is delivered after the wait.
+            loop.exec(QEventLoop::ExcludeUserInputEvents);
             timer.stop();
 
             if (!watcher) {
@@ -476,12 +608,16 @@ void DBusMenuImporter::slotItemActivationRequested(int id, uint /*timestamp*/)
 void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
 {
     int parentId = watcher->property(DBUSMENU_PROPERTY_ID).toInt();
+    const bool resendClick = watcher->property(DBUSMENU_PROPERTY_RESEND_CLICK).toBool();
     watcher->deleteLater();
 
     QDBusPendingReply<uint, DBusMenuLayoutItem> reply = *watcher;
     if (!reply.isValid()) {
         DMWARNING << reply.error().message();
         d->m_refreshing = false;
+        if (resendClick) {
+            d->resolvePendingClick(nullptr); // drop it
+        }
         return;
     }
 
@@ -494,11 +630,28 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     if (!menu) {
         DMWARNING << "No menu for id" << parentId;
         d->m_refreshing = false;
+        if (resendClick) {
+            d->resolvePendingClick(nullptr); // drop it
+        }
+        return;
+    }
+
+    if (d->m_lockedMenus.contains(menu)) {
+        // WORKAROUND for a crash in Qt's menu code (see "slotMenuAboutToShow()"):
+        // a submenu of this menu is being opened, and reloading this menu now
+        // would hide it while Qt is still opening it. Fetch the layout again later.
+        d->m_pendingLayoutUpdates << parentId;
+        if (resendClick) {
+            d->m_resendClickIds << parentId;
+        }
+        d->m_refreshing = false;
+        d->m_pendingLayoutUpdateTimer->start();
         return;
     }
 
     // Block some menu events while actions are reloaded.
     auto m = qobject_cast<Menu*>(menu);
+    const bool wasBlocked = m && m->blockEvents;
     if (m) {
         m->blockEvents = true;
     }
@@ -510,10 +663,21 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     QAction *activeAction = nullptr;
     int index = 0;
 
-    menu->clear();
+    // WORKAROUND for a problem in Qt's menu code: do not call "menu->clear()"
+    // here. A visible menu that becomes empty is resized to an empty size. On
+    // X11, that hides its window, breaks the popup grab and Qt closes all
+    // popups; on Wayland, the menu blinks and a "Leave" event clears its active
+    // action. So, the new actions are added first and the old ones are removed
+    // afterwards.
+    QList<QPointer<QAction>> oldActions;
+    const auto currentActions = menu->actions();
+    for (QAction *act : currentActions) {
+        oldActions << act;
+    }
 
     for (const DBusMenuLayoutItem &dbusMenuItem : std::as_const(rootItem.children)) {
         QAction *action = d->createAction(dbusMenuItem.id, dbusMenuItem.properties, menu);
+        menu->addAction(action);
         DBusMenuImporterPrivate::ActionForId::Iterator it = d->m_actionForId.find(dbusMenuItem.id);
         if (it == d->m_actionForId.end()) {
             d->m_actionForId.insert(dbusMenuItem.id, action);
@@ -521,7 +685,6 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
             delete *it;
             *it = action;
         }
-        menu->addAction(action);
 
         connect(action, SIGNAL(triggered()),
             &d->m_mapper, SLOT(map()));
@@ -541,6 +704,17 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
         // So, a recursive call "d->refresh(dbusMenuItem.id)" is not needed here.
     }
 
+    // Remove the old actions like "QMenu::clear()" does.
+    for (const QPointer<QAction> &act : std::as_const(oldActions)) {
+        if (!act) { // already deleted above
+            continue;
+        }
+        menu->removeAction(act);
+        if (act->parent() == menu && act->associatedObjects().isEmpty()) {
+            delete act;
+        }
+    }
+
     if (activeIndex > -1 && !activeAction) { // try to activate the last action
         const auto acts = menu->actions();
         for (int i = acts.size() -1; i >= 0; --i) {
@@ -557,7 +731,11 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
     menu->setUpdatesEnabled(true);
 
     if (m) {
-        m->blockEvents = false;
+        m->blockEvents = wasBlocked;
+    }
+
+    if (resendClick) {
+        d->resolvePendingClick(menu);
     }
 
     // The next update of pending layouts, if any.
@@ -573,7 +751,37 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
 
 void DBusMenuImporter::sendClickedEvent(int id)
 {
-    d->sendEvent(id, "clicked"_L1);
+    // Some apps (e.g. nm-applet) renew all ids on each layout update. So, while
+    // an update is pending or being fetched, the clicked id may be stale. Then,
+    // fetch the layout now and resend the click to the item at the same place.
+    if (d->m_pendingLayoutUpdates.isEmpty() && !d->m_refreshing) {
+        d->sendEvent(id, "clicked"_L1);
+        return;
+    }
+
+    // Find the path of the item, from the root menu.
+    QList<DBusMenuImporterPrivate::ClickLevel> path;
+    bool reachedRoot = false;
+    QAction *action = d->m_actionForId.value(id);
+    while (action) {
+        QMenu *parentMenu = qobject_cast<QMenu*>(action->parent());
+        if (!parentMenu || !parentMenu->actions().contains(action)) {
+            break;
+        }
+        path.prepend(DBusMenuImporterPrivate::clickLevel(parentMenu, action));
+        if (parentMenu == menu()) {
+            reachedRoot = true;
+            break;
+        }
+        QMenu *grandParent = qobject_cast<QMenu*>(parentMenu->parent());
+        action = grandParent ? DBusMenuImporterPrivate::actionForMenu(grandParent, parentMenu) : nullptr;
+    }
+    if (!reachedRoot) {
+        d->sendEvent(id, "clicked"_L1);
+        return;
+    }
+
+    d->resolveClick(path);
 }
 
 void DBusMenuImporter::updateMenu()
@@ -605,6 +813,25 @@ void DBusMenuImporter::slotMenuAboutToShow()
 
     QPointer<QObject> guard(this);
 
+    // WORKAROUND for a crash in Qt's menu code (a problem similar to
+    // https://bugreports.qt.io/browse/QTBUG-77273): the wait below runs a nested
+    // event loop inside "QMenu::popup()". If a parent menu is reloaded or
+    // handles its timers meanwhile, this menu may be hidden while Qt is still
+    // opening it, and Qt crashes in "QMenu::internalDelayedPopup()" because it
+    // does not expect that. So, lock the parent menus until then.
+    const QList<QMenu*> parents = d->parentMenus(menu);
+    QList<QPointer<QMenu>> lockedParents;
+    QList<bool> wereBlocked;
+    for (QMenu *parent : parents) {
+        d->m_lockedMenus << parent;
+        lockedParents << parent;
+        auto m = qobject_cast<Menu*>(parent);
+        wereBlocked << (m && m->blockEvents);
+        if (m) {
+            m->blockEvents = true;
+        }
+    }
+
     if (!d->waitForWatcher(watcher, ABOUT_TO_SHOW_TIMEOUT)) {
         DMWARNING << "Application did not answer to AboutToShow() before timeout";
     }
@@ -615,6 +842,13 @@ void DBusMenuImporter::slotMenuAboutToShow()
     // "this" got deleted during the call to waitForWatcher(), get out
     if (!guard) {
         return;
+    }
+
+    for (int i = 0; i < parents.size(); ++i) {
+        d->m_lockedMenus.removeOne(parents.at(i));
+        if (auto m = qobject_cast<Menu*>(lockedParents.at(i).data())) {
+            m->blockEvents = wereBlocked.at(i);
+        }
     }
 
     if (menu == d->m_menu && d->m_mustEmitMenuUpdated) {
