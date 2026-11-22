@@ -44,6 +44,8 @@ private Q_SLOTS:
     void testInvisibleItem();
     void testDisabledItem();
     void testVisibleMenuStaysOpenOnLayoutUpdate();
+    void testLayoutUpdateKeepsActions();
+    void testKeptActionPrefersIconName();
     void testClickDuringPendingLayoutUpdate();
     void testSubmenuClickDuringPendingLayoutUpdate();
     void testClickDuringLayoutFetch();

@@ -61,6 +61,7 @@ static const char *DBUSMENU_PROPERTY_ID = "_dbusmenu_id";
 static const char *DBUSMENU_PROPERTY_ICON_NAME = "_dbusmenu_icon_name";
 static const char *DBUSMENU_PROPERTY_ICON_DATA_HASH = "_dbusmenu_icon_data_hash";
 static const char *DBUSMENU_PROPERTY_RESEND_CLICK = "_dbusmenu_resend_click";
+static const char *DBUSMENU_PROPERTY_STALE = "_dbusmenu_stale";
 
 static QAction *createKdeTitle(QAction *action, QWidget *parent)
 {
@@ -238,7 +239,7 @@ public:
         if (m_pendingClickPath.isEmpty()) {
             sendEvent(id, "clicked"_L1);
             resolveNextQueuedClick();
-        } else { // new submenus are empty until they are fetched
+        } else { // submenus are empty or stale until they are fetched
             refresh(id)->setProperty(DBUSMENU_PROPERTY_RESEND_CLICK, true);
         }
     }
@@ -315,6 +316,78 @@ public:
         }
 
         return action;
+    }
+
+    // Whether "action" can show an item with these properties: only the
+    // properties handled by "createAction()" cannot be changed afterwards.
+    static bool canReuseAction(QAction *action, const QVariantMap &map)
+    {
+        if (qobject_cast<QWidgetAction*>(action) || map.value("x-kde-title"_L1).toBool()) {
+            return false;
+        }
+        const QString toggleType = map.value("toggle-type"_L1).toString();
+        return action->isSeparator() == (map.value("type"_L1).toString() == "separator"_L1)
+            && (action->menu() != nullptr) == (map.value("children-display"_L1).toString() == "submenu"_L1)
+            && action->isCheckable() == !toggleType.isEmpty()
+            && (action->actionGroup() != nullptr) == (toggleType == "radio"_L1);
+    }
+
+    // Give an existing action the id and properties of a new item.
+    void reuseAction(QAction *action, int id, const QVariantMap &_map)
+    {
+        const int oldId = action->property(DBUSMENU_PROPERTY_ID).toInt();
+        if (oldId != id) {
+            if (m_actionForId.value(oldId) == action) {
+                m_actionForId.remove(oldId);
+            }
+            m_actionForId.insert(id, action);
+            action->setProperty(DBUSMENU_PROPERTY_ID, id);
+            m_mapper.setMapping(action, id);
+        }
+
+        QVariantMap map = _map;
+        for (const auto key : {"type"_L1, "children-display"_L1, "toggle-type"_L1, "x-kde-title"_L1}) {
+            map.remove(key);
+        }
+
+        // Recompute the icon as "createAction()" does only if its source changes.
+        const QString iconName = map.value("icon-name"_L1).toString();
+        const bool hasIconData = map.contains("icon-data"_L1);
+        const QVariant iconDataHash = action->property(DBUSMENU_PROPERTY_ICON_DATA_HASH);
+        if (iconName != action->property(DBUSMENU_PROPERTY_ICON_NAME).toString()
+            || hasIconData != iconDataHash.isValid()
+            || (hasIconData && uint(qHash(map.value("icon-data"_L1).toByteArray())) != iconDataHash.toUInt())) {
+            action->setProperty(DBUSMENU_PROPERTY_ICON_NAME, QVariant());
+            action->setProperty(DBUSMENU_PROPERTY_ICON_DATA_HASH, QVariant());
+            if (iconName.isEmpty() && !hasIconData) {
+                action->setIcon(QIcon());
+            }
+        }
+
+        // The properties that the item does not have get their default values,
+        // like in a new action.
+        for (const auto key : {"label"_L1, "enabled"_L1, "visible"_L1}) {
+            if (!map.contains(key)) {
+                updateActionProperty(action, key, QVariant());
+            }
+        }
+        if (!map.contains("shortcut"_L1)) {
+            action->setShortcut(QKeySequence());
+        }
+        if (!map.contains("toggle-state"_L1) && action->isCheckable()) {
+            action->setChecked(false);
+        }
+
+        updateAction(action, map, map.keys());
+
+        // The items of a submenu are fetched again before it is shown, or now
+        // if it is visible.
+        if (QMenu *subMenu = action->menu()) {
+            subMenu->setProperty(DBUSMENU_PROPERTY_STALE, true);
+            if (subMenu->isVisible()) {
+                m_pendingLayoutUpdates << id;
+            }
+        }
     }
 
     /**
@@ -656,57 +729,45 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
         m->blockEvents = true;
     }
 
-    // Try to restore the active action, such that a visible submenu
-    // will be reopened after reloading actions.
+    menu->setProperty(DBUSMENU_PROPERTY_STALE, QVariant());
     menu->setUpdatesEnabled(false);
-    int activeIndex = menu->actions().indexOf(menu->activeAction());
-    QAction *activeAction = nullptr;
-    int index = 0;
+    QAction *activeBefore = menu->activeAction();
+    const QList<QAction*> oldActions = menu->actions();
+    const int activeIndex = oldActions.indexOf(activeBefore);
 
-    // WORKAROUND for a problem in Qt's menu code: do not call "menu->clear()"
-    // here. A visible menu that becomes empty is resized to an empty size. On
-    // X11, that hides its window, breaks the popup grab and Qt closes all
-    // popups; on Wayland, the menu blinks and a "Leave" event clears its active
-    // action. So, the new actions are added first and the old ones are removed
-    // afterwards.
-    QList<QPointer<QAction>> oldActions;
-    const auto currentActions = menu->actions();
-    for (QAction *act : currentActions) {
-        oldActions << act;
-    }
-
-    for (const DBusMenuLayoutItem &dbusMenuItem : std::as_const(rootItem.children)) {
-        QAction *action = d->createAction(dbusMenuItem.id, dbusMenuItem.properties, menu);
-        menu->addAction(action);
-        DBusMenuImporterPrivate::ActionForId::Iterator it = d->m_actionForId.find(dbusMenuItem.id);
-        if (it == d->m_actionForId.end()) {
-            d->m_actionForId.insert(dbusMenuItem.id, action);
-        } else {
-            delete *it;
-            *it = action;
+    // WORKAROUND for problems in Qt's menu code: keep the current actions
+    // wherever the new items are of the same kind, and only update their ids
+    // and properties. Apps like nm-applet rebuild their whole menu with new ids
+    // but mostly the same items. Recreating all actions changed the size of the
+    // visible menu while it was reloaded, which Qt's menu code does not handle
+    // well: on X11, the menu closed; on Wayland, it blinked and a "Leave" event
+    // cleared its active action; and it could grow and shrink suddenly. It also
+    // deleted actions that Qt's menu code might still use (see the WARNING in
+    // the constructor and "slotMenuAboutToShow()").
+    QList<QAction*> keptActions;
+    for (int i = 0; i < rootItem.children.size(); ++i) {
+        const DBusMenuLayoutItem &dbusMenuItem = rootItem.children.at(i);
+        QAction *old = oldActions.value(i);
+        if (old && d->canReuseAction(old, dbusMenuItem.properties)) {
+            d->reuseAction(old, dbusMenuItem.id, dbusMenuItem.properties);
+            keptActions << old;
+            continue;
         }
 
+        // Insert the new action before removing the old one, so that a visible
+        // menu never becomes empty. NOTE: The new submenus will be refreshed in
+        // "slotMenuAboutToShow" on showing.
+        QAction *action = d->createAction(dbusMenuItem.id, dbusMenuItem.properties, menu);
+        menu->insertAction(old, action);
+        d->m_actionForId.insert(dbusMenuItem.id, action);
         connect(action, SIGNAL(triggered()),
             &d->m_mapper, SLOT(map()));
         d->m_mapper.setMapping(action, dbusMenuItem.id);
-
-        if (index == activeIndex) {
-            if (action->isEnabled() && !action->isSeparator()) {
-                activeAction = action;
-            }
-            else {
-                ++activeIndex;
-            }
-        }
-        ++index;
-
-        // NOTE: The new submenus will be refreshed in "slotMenuAboutToShow" on showing.
-        // So, a recursive call "d->refresh(dbusMenuItem.id)" is not needed here.
     }
 
-    // Remove the old actions like "QMenu::clear()" does.
-    for (const QPointer<QAction> &act : std::as_const(oldActions)) {
-        if (!act) { // already deleted above
+    // Remove the old actions that are not kept, like "QMenu::clear()" does.
+    for (QAction *act : oldActions) {
+        if (keptActions.contains(act)) {
             continue;
         }
         menu->removeAction(act);
@@ -715,18 +776,24 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
         }
     }
 
-    if (activeIndex > -1 && !activeAction) { // try to activate the last action
+    // If the active action was removed, activate the one at its place, such
+    // that a visible submenu will be reopened, or the last one.
+    if (activeIndex > -1 && !keptActions.contains(activeBefore)) {
         const auto acts = menu->actions();
-        for (int i = acts.size() -1; i >= 0; --i) {
-            auto act = acts.at(i);
-            if (act->isEnabled() && !act->isSeparator()) {
-                activeAction = act;
-                break;
+        QAction *activeAction = nullptr;
+        for (int i = activeIndex; i < acts.size() && !activeAction; ++i) {
+            if (acts.at(i)->isEnabled() && !acts.at(i)->isSeparator()) {
+                activeAction = acts.at(i);
             }
         }
-    }
-    if (activeAction) {
-        menu->setActiveAction(activeAction);
+        for (int i = acts.size() - 1; i >= 0 && !activeAction; --i) {
+            if (acts.at(i)->isEnabled() && !acts.at(i)->isSeparator()) {
+                activeAction = acts.at(i);
+            }
+        }
+        if (activeAction) {
+            menu->setActiveAction(activeAction);
+        }
     }
     menu->setUpdatesEnabled(true);
 
@@ -877,7 +944,7 @@ void DBusMenuImporter::slotAboutToShowDBusCallFinished(QDBusPendingCallWatcher *
     QMenu *menu = d->menuForId(id);
     DMRETURN_IF_FAIL(menu);
 
-    if (needRefresh || menu->actions().isEmpty()) {
+    if (needRefresh || menu->actions().isEmpty() || menu->property(DBUSMENU_PROPERTY_STALE).toBool()) {
         d->m_idsRefreshedByAboutToShow << id;
         QDBusPendingCallWatcher *watcher2 = d->refresh(id);
         if (!d->waitForWatcher(watcher2, REFRESH_TIMEOUT)) {

@@ -397,6 +397,148 @@ void DBusMenuImporterTest::testVisibleMenuStaysOpenOnLayoutUpdate()
     outputMenu->hide();
 }
 
+// Counts the events that change the items or the size of a watched menu.
+class MenuChangeWatcher : public QObject
+{
+public:
+    int changes = 0;
+
+protected:
+    bool eventFilter(QObject * /*obj*/, QEvent *event) override
+    {
+        if (event->type() == QEvent::ActionAdded || event->type() == QEvent::ActionRemoved
+            || event->type() == QEvent::Resize) {
+            ++changes;
+        }
+        return false;
+    }
+};
+
+void DBusMenuImporterTest::testLayoutUpdateKeepsActions()
+{
+    QMenu inputMenu;
+    QMenu inputSubMenu;
+    inputSubMenu.addAction("s1"_L1);
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Networks"_L1)->setMenu(&inputSubMenu);
+    inputMenu.addAction("Info"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 3);
+    QMenu *outputSubMenu = outputMenu->actions().at(1)->menu();
+    QVERIFY(outputSubMenu);
+    QMetaObject::invokeMethod(outputSubMenu, "aboutToShow"); // fetch the submenu
+    QTRY_COMPARE(outputSubMenu->actions().count(), 1);
+    QList<QPointer<QAction>> actionsBefore; // the replaced actions may be deleted
+    const auto acts = outputMenu->actions();
+    for (QAction *act : acts) {
+        actionsBefore << act;
+    }
+    outputMenu->popup(QPoint(0, 0));
+    QTRY_VERIFY(outputMenu->isVisible());
+    QTest::qWait(200);
+    MenuChangeWatcher watcher;
+    outputMenu->installEventFilter(&watcher);
+
+    // Rebuild the whole menu with the same items, so every id changes
+    // (nm-applet does this after each Wi-Fi scan), and a new submenu item.
+    QMenu newInputSubMenu;
+    newInputSubMenu.addAction("s1"_L1);
+    newInputSubMenu.addAction("s2"_L1);
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Networks"_L1)->setMenu(&newInputSubMenu);
+    QAction *newInfo = inputMenu.addAction("Info"_L1);
+    QSignalSpy infoSpy(newInfo, &QAction::triggered);
+    QTest::qWait(2500); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
+
+    // The visible menu keeps its actions and does not change at all.
+    QCOMPARE(outputMenu->actions().count(), actionsBefore.count());
+    for (int i = 0; i < actionsBefore.count(); ++i) {
+        QVERIFY(outputMenu->actions().at(i) == actionsBefore.at(i));
+    }
+    QCOMPARE(watcher.changes, 0);
+    outputMenu->removeEventFilter(&watcher);
+
+    // The kept actions have the new ids.
+    outputMenu->actions().at(2)->trigger();
+    QTRY_COMPARE_WITH_TIMEOUT(infoSpy.count(), 1, 1000);
+
+    // The kept submenu is fetched again before it is shown.
+    QCOMPARE(outputMenu->actions().at(1)->menu(), outputSubMenu);
+    QMetaObject::invokeMethod(outputSubMenu, "aboutToShow");
+    QTRY_COMPARE(outputSubMenu->actions().count(), 2);
+    outputMenu->hide();
+}
+
+static QIcon colorIcon(const QColor &color)
+{
+    QPixmap pix(16, 16);
+    pix.fill(color);
+    return QIcon(pix);
+}
+
+static QColor iconColor(const QIcon &icon)
+{
+    return icon.pixmap(16).toImage().pixelColor(8, 8);
+}
+
+// Sends an icon name with every icon, like apps whose icons come from a theme.
+class IconNameExporter : public DBusMenuExporter
+{
+public:
+    using DBusMenuExporter::DBusMenuExporter;
+
+protected:
+    QString iconNameForAction(QAction * /*action*/) override
+    {
+        return "theme-icon"_L1;
+    }
+};
+
+// Resolves every icon name to a blue icon, like a theme would.
+class IconNameImporter : public DBusMenuImporter
+{
+public:
+    using DBusMenuImporter::DBusMenuImporter;
+
+protected:
+    QIcon iconForName(const QString & /*name*/) override
+    {
+        return colorIcon(Qt::blue);
+    }
+};
+
+void DBusMenuImporterTest::testKeptActionPrefersIconName()
+{
+    QMenu inputMenu;
+    IconNameExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+    // Added after the c-tor, which cannot call the overridden "iconNameForAction()".
+    inputMenu.addAction(colorIcon(Qt::red), "a1"_L1);
+
+    IconNameImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 1);
+    QPointer<QAction> outputAction = outputMenu->actions().first();
+    // With both "icon-name" and "icon-data", the icon of the name is used.
+    QCOMPARE(iconColor(outputAction->icon()), QColor(Qt::blue));
+
+    // Rebuild the menu with the same item but other icon data, so the action
+    // is kept with a new id.
+    inputMenu.clear();
+    inputMenu.addAction(colorIcon(Qt::green), "a1"_L1);
+    QTest::qWait(2500); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
+
+    QVERIFY(outputAction);
+    QCOMPARE(outputMenu->actions().first(), outputAction.data());
+    // Like a new action, the kept one still uses the icon of the name.
+    QCOMPARE(iconColor(outputAction->icon()), QColor(Qt::blue));
+}
+
 void DBusMenuImporterTest::testClickDuringPendingLayoutUpdate()
 {
     QMenu inputMenu;
