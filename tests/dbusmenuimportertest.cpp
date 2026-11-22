@@ -25,6 +25,7 @@
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusReply>
+#include <QGuiApplication>
 #include <QIcon>
 #include <QLatin1StringView>
 #include <QMenu>
@@ -46,6 +47,23 @@ static constexpr QLatin1StringView TEST_SERVICE = "com.canonical.dbusmenu-lxqt-t
 static constexpr QLatin1StringView TEST_OBJECT_PATH = "/TestMenuBar"_L1;
 
 Q_DECLARE_METATYPE(QAction*)
+
+// Records whether a watched menu ever loses its last action.
+class EmptyMenuWatcher : public QObject
+{
+public:
+    bool becameEmpty = false;
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override
+    {
+        if (event->type() == QEvent::ActionRemoved
+            && static_cast<QWidget*>(obj)->actions().isEmpty()) {
+            becameEmpty = true;
+        }
+        return false;
+    }
+};
 
 void DBusMenuImporterTest::initTestCase()
 {
@@ -344,3 +362,384 @@ void DBusMenuImporterTest::testDisabledItem()
     QVERIFY(outputAction->isEnabled());
 }
 
+
+void DBusMenuImporterTest::testVisibleMenuStaysOpenOnLayoutUpdate()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("a2"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    outputMenu->popup(QPoint(0, 0));
+    QTRY_VERIFY(outputMenu->isVisible());
+    EmptyMenuWatcher watcher;
+    outputMenu->installEventFilter(&watcher);
+
+    // Replace every item, like apps that rebuild their whole menu do
+    // (e.g. nm-applet after each Wi-Fi scan), so every id changes.
+    inputMenu.clear();
+    inputMenu.addAction("b1"_L1);
+    inputMenu.addAction("b2"_L1);
+    inputMenu.addAction("b3"_L1);
+    QTest::qWait(2500); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
+
+    QCOMPARE(outputMenu->actions().count(), 3);
+    QCOMPARE(outputMenu->actions().first()->text(), "b1"_L1);
+    // A visible menu must never become empty, not even for a moment: an empty
+    // menu may be resized to an empty size, which unmaps and closes it on X11.
+    QVERIFY(!watcher.becameEmpty);
+    outputMenu->removeEventFilter(&watcher);
+    outputMenu->hide();
+}
+
+// Counts the events that change the items or the size of a watched menu.
+class MenuChangeWatcher : public QObject
+{
+public:
+    int changes = 0;
+
+protected:
+    bool eventFilter(QObject * /*obj*/, QEvent *event) override
+    {
+        if (event->type() == QEvent::ActionAdded || event->type() == QEvent::ActionRemoved
+            || event->type() == QEvent::Resize) {
+            ++changes;
+        }
+        return false;
+    }
+};
+
+void DBusMenuImporterTest::testLayoutUpdateKeepsActions()
+{
+    QMenu inputMenu;
+    QMenu inputSubMenu;
+    inputSubMenu.addAction("s1"_L1);
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Networks"_L1)->setMenu(&inputSubMenu);
+    inputMenu.addAction("Info"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 3);
+    QMenu *outputSubMenu = outputMenu->actions().at(1)->menu();
+    QVERIFY(outputSubMenu);
+    QMetaObject::invokeMethod(outputSubMenu, "aboutToShow"); // fetch the submenu
+    QTRY_COMPARE(outputSubMenu->actions().count(), 1);
+    QList<QPointer<QAction>> actionsBefore; // the replaced actions may be deleted
+    const auto acts = outputMenu->actions();
+    for (QAction *act : acts) {
+        actionsBefore << act;
+    }
+    outputMenu->popup(QPoint(0, 0));
+    QTRY_VERIFY(outputMenu->isVisible());
+    QTest::qWait(200);
+    MenuChangeWatcher watcher;
+    outputMenu->installEventFilter(&watcher);
+
+    // Rebuild the whole menu with the same items, so every id changes
+    // (nm-applet does this after each Wi-Fi scan), and a new submenu item.
+    QMenu newInputSubMenu;
+    newInputSubMenu.addAction("s1"_L1);
+    newInputSubMenu.addAction("s2"_L1);
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Networks"_L1)->setMenu(&newInputSubMenu);
+    QAction *newInfo = inputMenu.addAction("Info"_L1);
+    QSignalSpy infoSpy(newInfo, &QAction::triggered);
+    QTest::qWait(2500); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
+
+    // The visible menu keeps its actions and does not change at all.
+    QCOMPARE(outputMenu->actions().count(), actionsBefore.count());
+    for (int i = 0; i < actionsBefore.count(); ++i) {
+        QVERIFY(outputMenu->actions().at(i) == actionsBefore.at(i));
+    }
+    QCOMPARE(watcher.changes, 0);
+    outputMenu->removeEventFilter(&watcher);
+
+    // The kept actions have the new ids.
+    outputMenu->actions().at(2)->trigger();
+    QTRY_COMPARE_WITH_TIMEOUT(infoSpy.count(), 1, 1000);
+
+    // The kept submenu is fetched again before it is shown.
+    QCOMPARE(outputMenu->actions().at(1)->menu(), outputSubMenu);
+    QMetaObject::invokeMethod(outputSubMenu, "aboutToShow");
+    QTRY_COMPARE(outputSubMenu->actions().count(), 2);
+    outputMenu->hide();
+}
+
+static QIcon colorIcon(const QColor &color)
+{
+    QPixmap pix(16, 16);
+    pix.fill(color);
+    return QIcon(pix);
+}
+
+static QColor iconColor(const QIcon &icon)
+{
+    return icon.pixmap(16).toImage().pixelColor(8, 8);
+}
+
+// Sends an icon name with every icon, like apps whose icons come from a theme.
+class IconNameExporter : public DBusMenuExporter
+{
+public:
+    using DBusMenuExporter::DBusMenuExporter;
+
+protected:
+    QString iconNameForAction(QAction * /*action*/) override
+    {
+        return "theme-icon"_L1;
+    }
+};
+
+// Resolves every icon name to a blue icon, like a theme would.
+class IconNameImporter : public DBusMenuImporter
+{
+public:
+    using DBusMenuImporter::DBusMenuImporter;
+
+protected:
+    QIcon iconForName(const QString & /*name*/) override
+    {
+        return colorIcon(Qt::blue);
+    }
+};
+
+void DBusMenuImporterTest::testKeptActionPrefersIconName()
+{
+    QMenu inputMenu;
+    IconNameExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+    // Added after the c-tor, which cannot call the overridden "iconNameForAction()".
+    inputMenu.addAction(colorIcon(Qt::red), "a1"_L1);
+
+    IconNameImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 1);
+    QPointer<QAction> outputAction = outputMenu->actions().first();
+    // With both "icon-name" and "icon-data", the icon of the name is used.
+    QCOMPARE(iconColor(outputAction->icon()), QColor(Qt::blue));
+
+    // Rebuild the menu with the same item but other icon data, so the action
+    // is kept with a new id.
+    inputMenu.clear();
+    inputMenu.addAction(colorIcon(Qt::green), "a1"_L1);
+    QTest::qWait(2500); // see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter"
+
+    QVERIFY(outputAction);
+    QCOMPARE(outputMenu->actions().first(), outputAction.data());
+    // Like a new action, the kept one still uses the icon of the name.
+    QCOMPARE(iconColor(outputAction->icon()), QColor(Qt::blue));
+}
+
+void DBusMenuImporterTest::testClickDuringPendingLayoutUpdate()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Edit"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QAction *staleOutputAction = outputMenu->actions().at(1);
+
+    // Rebuild the menu with the same labels, so every id changes
+    // (nm-applet does this after each Wi-Fi scan).
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    QAction *newEdit = inputMenu.addAction("Edit"_L1);
+    QSignalSpy triggeredSpy(newEdit, &QAction::triggered);
+
+    // Click before the importer fetches the new layout
+    // (see "LAYOUT_UPDATE_TIMEOUT" in the c-tor of "DBusMenuImporter").
+    QTest::qWait(500);
+    QCOMPARE(outputMenu->actions().at(1), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(triggeredSpy.count(), 1, 1000);
+}
+
+void DBusMenuImporterTest::testSubmenuClickDuringPendingLayoutUpdate()
+{
+    QMenu inputMenu;
+    QMenu inputSubMenu;
+    inputSubMenu.addAction("b1"_L1);
+    inputSubMenu.addAction("Edit"_L1);
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("VPN"_L1)->setMenu(&inputSubMenu);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QMenu *outputSubMenu = outputMenu->actions().at(1)->menu();
+    QVERIFY(outputSubMenu);
+    QMetaObject::invokeMethod(outputSubMenu, "aboutToShow"); // fetch the submenu
+    QTRY_COMPARE(outputSubMenu->actions().count(), 2);
+    QAction *staleOutputAction = outputSubMenu->actions().at(1);
+
+    // Rebuild the whole menu with the same labels, so every id changes.
+    QMenu newInputSubMenu;
+    newInputSubMenu.addAction("b1"_L1);
+    QAction *newEdit = newInputSubMenu.addAction("Edit"_L1);
+    QSignalSpy triggeredSpy(newEdit, &QAction::triggered);
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("VPN"_L1)->setMenu(&newInputSubMenu);
+
+    // Click before the importer fetches the new layout.
+    QTest::qWait(500);
+    QCOMPARE(outputSubMenu->actions().at(1), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(triggeredSpy.count(), 1, 1500);
+}
+
+void DBusMenuImporterTest::testClickDuringLayoutFetch()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("a1"_L1);
+    inputMenu.addAction("Edit"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QAction *staleOutputAction = outputMenu->actions().at(1);
+
+    // Rebuild the menu with the same labels, so every id changes.
+    inputMenu.clear();
+    inputMenu.addAction("a1"_L1);
+    QAction *newEdit = inputMenu.addAction("Edit"_L1);
+    QSignalSpy triggeredSpy(newEdit, &QAction::triggered);
+    QTest::qWait(500); // the layout update is now pending
+
+    // Start fetching the new layout and click before its reply is processed.
+    QVERIFY(QMetaObject::invokeMethod(&importer, "processPendingLayoutUpdates", Qt::DirectConnection));
+    QCOMPARE(outputMenu->actions().at(1), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(triggeredSpy.count(), 1, 1000);
+}
+
+void DBusMenuImporterTest::testClickOnMovedDuplicateLabel()
+{
+    // Two items with the same label, like nm-applet's "Disconnect" items of
+    // its wired and wireless sections.
+    QMenu inputMenu;
+    inputMenu.addAction("Wired"_L1);
+    inputMenu.addAction("Disconnect"_L1);
+    inputMenu.addAction("Wireless"_L1);
+    inputMenu.addAction("Disconnect"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 4);
+    QAction *staleOutputAction = outputMenu->actions().at(3);
+
+    // Rebuild the menu with a new item on top, so the items move and every id
+    // changes.
+    inputMenu.clear();
+    inputMenu.addAction("New network"_L1);
+    inputMenu.addAction("Wired"_L1);
+    QAction *newWiredDisconnect = inputMenu.addAction("Disconnect"_L1);
+    inputMenu.addAction("Wireless"_L1);
+    QAction *newWirelessDisconnect = inputMenu.addAction("Disconnect"_L1);
+    QSignalSpy wiredSpy(newWiredDisconnect, &QAction::triggered);
+    QSignalSpy wirelessSpy(newWirelessDisconnect, &QAction::triggered);
+
+    // Click the second "Disconnect" before the importer fetches the new layout.
+    QTest::qWait(500);
+    QCOMPARE(outputMenu->actions().at(3), staleOutputAction);
+    staleOutputAction->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(wirelessSpy.count(), 1, 1000);
+    QCOMPARE(wiredSpy.count(), 0);
+}
+
+void DBusMenuImporterTest::testTwoClicksDuringPendingLayoutUpdate()
+{
+    QMenu inputMenu;
+    inputMenu.addAction("Info"_L1);
+    inputMenu.addAction("Edit"_L1);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    QAction *staleInfo = outputMenu->actions().at(0);
+    QAction *staleEdit = outputMenu->actions().at(1);
+
+    // Rebuild the menu with the same labels, so every id changes.
+    inputMenu.clear();
+    QAction *newInfo = inputMenu.addAction("Info"_L1);
+    QAction *newEdit = inputMenu.addAction("Edit"_L1);
+    QSignalSpy infoSpy(newInfo, &QAction::triggered);
+    QSignalSpy editSpy(newEdit, &QAction::triggered);
+
+    // Click twice before the importer fetches the new layout: the second
+    // click comes while the first one is still being resolved.
+    QTest::qWait(500);
+    staleInfo->trigger();
+    staleEdit->trigger();
+
+    QTRY_COMPARE_WITH_TIMEOUT(infoSpy.count(), 1, 1500);
+    QTRY_COMPARE_WITH_TIMEOUT(editSpy.count(), 1, 1500);
+}
+
+void DBusMenuImporterTest::testRootUpdateWhileSubmenuOpens()
+{
+    if (QGuiApplication::platformName() == "wayland"_L1) {
+        QSKIP("A submenu cannot be opened without real input on Wayland");
+    }
+    QMenu inputMenu;
+    QMenu inputSubMenu;
+    inputSubMenu.addAction("b1"_L1);
+    inputMenu.addAction("a1"_L1);
+    QAction *inputSubAction = inputMenu.addAction("Sub"_L1);
+    inputSubAction->setMenu(&inputSubMenu);
+    DBusMenuExporter exporter(TEST_OBJECT_PATH, &inputMenu);
+
+    DBusMenuImporter importer(TEST_SERVICE, TEST_OBJECT_PATH);
+    QTest::qWait(500);
+    QMenu *outputMenu = importer.menu();
+    QCOMPARE(outputMenu->actions().count(), 2);
+    outputMenu->popup(QPoint(0, 0));
+    QTRY_VERIFY(outputMenu->isVisible());
+    QTest::qWait(500);
+
+    // While the importer waits for the app inside "QMenu::popup()" of the
+    // submenu, the app rebuilds its root menu (like nm-applet after a Wi-Fi
+    // scan) with a new item above the submenu item, so a plain item is now at
+    // its place, and the new root layout arrives.
+    bool rebuilt = false;
+    QTimer::singleShot(0, this, [&] { // runs in the nested event loop
+        rebuilt = true;
+        inputMenu.insertAction(inputSubAction, new QAction("a2"_L1, &inputMenu));
+        QTest::qWait(100); // the layout update reaches the importer
+        QVERIFY(QMetaObject::invokeMethod(&importer, "processPendingLayoutUpdates", Qt::DirectConnection));
+        QTest::qWait(200); // the new root layout is received
+    });
+
+    // Open the submenu, the way hovering its item does.
+    outputMenu->setActiveAction(outputMenu->actions().at(1));
+    QVERIFY(rebuilt);
+
+    // It must not crash, and the root menu must be updated afterwards.
+    QTRY_COMPARE_WITH_TIMEOUT(outputMenu->actions().count(), 3, 5000);
+    outputMenu->hide();
+}

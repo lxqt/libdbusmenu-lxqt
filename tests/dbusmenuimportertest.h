@@ -43,6 +43,15 @@ private Q_SLOTS:
     void testIconData();
     void testInvisibleItem();
     void testDisabledItem();
+    void testVisibleMenuStaysOpenOnLayoutUpdate();
+    void testLayoutUpdateKeepsActions();
+    void testKeptActionPrefersIconName();
+    void testClickDuringPendingLayoutUpdate();
+    void testSubmenuClickDuringPendingLayoutUpdate();
+    void testClickDuringLayoutFetch();
+    void testClickOnMovedDuplicateLabel();
+    void testTwoClicksDuringPendingLayoutUpdate();
+    void testRootUpdateWhileSubmenuOpens();
 
     void initTestCase();
 };
