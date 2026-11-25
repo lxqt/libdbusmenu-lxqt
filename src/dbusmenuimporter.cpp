@@ -112,6 +112,10 @@ public:
     QSet<int> m_idsRefreshedByAboutToShow;
     QSet<int> m_pendingLayoutUpdates;
 
+    // The parent menus of the menus whose "aboutToShow()" is waiting for the
+    // app (see "slotMenuAboutToShow()"). They must not be reloaded meanwhile.
+    QList<QMenu*> m_lockedMenus;
+
     bool m_mustEmitMenuUpdated;
 
     DBusMenuImporterType m_type;
@@ -302,6 +306,21 @@ public:
         return action->menu();
     }
 
+    // The menus above "menu", up to the root menu. A submenu is always created
+    // as a child of its parent menu (see "createAction()"), and its item may
+    // have already been replaced by a layout update.
+    QList<QMenu*> parentMenus(QMenu *menu) const
+    {
+        QList<QMenu*> result;
+        while (menu && menu != m_menu) {
+            menu = qobject_cast<QMenu*>(menu->parent());
+            if (menu) {
+                result << menu;
+            }
+        }
+        return result;
+    }
+
     void slotItemsPropertiesUpdated(const DBusMenuItemList &updatedList, const DBusMenuItemKeysList &removedList);
 
     void sendEvent(int id, const QString &eventId)
@@ -321,7 +340,9 @@ public:
             loop.connect(&timer, SIGNAL(timeout()), SLOT(quit()));
             loop.connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)), SLOT(quit()));
             timer.start(maxWait);
-            loop.exec();
+            // This may run inside "QMenu::popup()": user input could hide the
+            // menu that is being opened. It is delivered after the wait.
+            loop.exec(QEventLoop::ExcludeUserInputEvents);
             timer.stop();
 
             if (!watcher) {
@@ -497,6 +518,16 @@ void DBusMenuImporter::slotGetLayoutFinished(QDBusPendingCallWatcher *watcher)
         return;
     }
 
+    if (d->m_lockedMenus.contains(menu)) {
+        // WORKAROUND for a crash in Qt's menu code (see "slotMenuAboutToShow()"):
+        // a submenu of this menu is being opened, and reloading this menu now
+        // would hide it while Qt is still opening it. Fetch the layout again later.
+        d->m_pendingLayoutUpdates << parentId;
+        d->m_refreshing = false;
+        d->m_pendingLayoutUpdateTimer->start();
+        return;
+    }
+
     // Block some menu events while actions are reloaded.
     auto m = qobject_cast<Menu*>(menu);
     if (m) {
@@ -605,6 +636,25 @@ void DBusMenuImporter::slotMenuAboutToShow()
 
     QPointer<QObject> guard(this);
 
+    // WORKAROUND for a crash in Qt's menu code (a problem similar to
+    // https://bugreports.qt.io/browse/QTBUG-77273): the wait below runs a nested
+    // event loop inside "QMenu::popup()". If a parent menu is reloaded or
+    // handles its timers meanwhile, this menu may be hidden while Qt is still
+    // opening it, and Qt crashes in "QMenu::internalDelayedPopup()" because it
+    // does not expect that. So, lock the parent menus until then.
+    const QList<QMenu*> parents = d->parentMenus(menu);
+    QList<QPointer<QMenu>> lockedParents;
+    QList<bool> wereBlocked;
+    for (QMenu *parent : parents) {
+        d->m_lockedMenus << parent;
+        lockedParents << parent;
+        auto m = qobject_cast<Menu*>(parent);
+        wereBlocked << (m && m->blockEvents);
+        if (m) {
+            m->blockEvents = true;
+        }
+    }
+
     if (!d->waitForWatcher(watcher, ABOUT_TO_SHOW_TIMEOUT)) {
         DMWARNING << "Application did not answer to AboutToShow() before timeout";
     }
@@ -615,6 +665,13 @@ void DBusMenuImporter::slotMenuAboutToShow()
     // "this" got deleted during the call to waitForWatcher(), get out
     if (!guard) {
         return;
+    }
+
+    for (int i = 0; i < parents.size(); ++i) {
+        d->m_lockedMenus.removeOne(parents.at(i));
+        if (auto m = qobject_cast<Menu*>(lockedParents.at(i).data())) {
+            m->blockEvents = wereBlocked.at(i);
+        }
     }
 
     if (menu == d->m_menu && d->m_mustEmitMenuUpdated) {
